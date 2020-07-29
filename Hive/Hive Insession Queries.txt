@@ -1,0 +1,74 @@
+hive> create table employee
+    > (id int,
+    > name string,
+    > dept string,
+    > salary float,
+    > designation string)
+    > row format delimited
+    > fields terminated by ','
+    > stored as textfile;
+
+    LOAD DATA LOCAL INPATH 'bdmjune2020/hive/emp.txt' into table employee;
+
+    CREATE TABLE products
+    (prod_name string,
+     description string,
+     category string,
+     qty_on_hand int,
+     prod_num string,
+     packaged_with ARRAY<string>)
+     row format delimited
+     fields terminated by ','
+     collection items terminated by ':'
+     stored as textfile;
+
+     LOAD DATA LOCAL INPATH 'bdmjune2020/hive/Product.csv' into table products;
+
+     create  external table demo
+     (id int,name string)
+    row format delimited
+    fields terminated by ','
+    stored as textfile
+    location '/user/edureka_639001/demo.txt';
+
+CREATE EXTERNAL TABLE txn_ext(
+txnno INT, txndate STRING,
+custno INT, 
+amount DOUBLE,  
+product STRING, 
+city STRING, 
+state String, 
+Spendby String )
+PARTITIONED by (category string)
+clustered by (state)
+into 10 buckets
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY ',' 
+LOCATION '/bigdatapgp/common_folder/hive_datasets/tnxn.csv';
+
+hive> create table emp_partition
+    > (id int, name string,dept string, salary float, designation string)
+    > partitioned by (country string, state string)
+    > row format delimited
+    > fields terminated by ',';
+OK
+Time taken: 0.303 seconds
+hive> describe emp_partition;
+OK
+id                      int                                         
+name                    string                                      
+dept                    string                                      
+salary                  float                                       
+designation             string                                      
+country                 string                                      
+state                   string                                      
+                 
+# Partition Information          
+# col_name              data_type               comment             
+                 
+country                 string                                      
+state                   string                                      
+Time taken: 0.064 seconds, Fetched: 13 row(s)
+hive> LOAD DATA LOCAL INPATH 'bdmjune2020/hive/partition/empMH.txt' into table emp_partition
+    > partition(country='IN', state='MH');
+Loading data to table edureka_batch5.emp_partition partition (country=IN, state=MH)

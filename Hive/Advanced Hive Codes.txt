@@ -1,0 +1,426 @@
+Basic Hive
+
+create database edureka 
+
+/user/hive/warehouse/edureka.db
+
+CREATE TABLE products
+(
+prod_name STRING,
+description STRING,
+category STRING,
+qty_on_hand INT,
+prod_num STRING,
+packaged_with ARRAY<STRING>
+)
+row format delimited
+fields terminated by ','
+collection items terminated by ':'
+stored as textfile;
+
+LOAD DATA LOCAL INPATH
+'/home/cloudera/hive_datasets/Product.csv'
+OVERWRITE INTO TABLE products;
+
+SELECT * FROM products WHERE category='Video';
+
+SELECT * FROM products
+WHERE category='Video' AND PACKAGED_WITH[0]='dvd';
+
+SELECT category, count(*) FROM products
+GROUP BY category;
+
+CREATE TABLE sales_staging
+(
+cust_id STRING,
+prod_num STRING,
+qty INT,
+sale_date STRING,
+sales_id STRING
+)
+COMMENT 'Staging table for sales data'
+row format delimited
+fields terminated by ','
+stored as textfile;
+
+
+LOAD DATA LOCAL INPATH
+'/home/cloudera/hive_datasets/Sales.csv'
+INTO TABLE sales_staging;
+
+
+CREATE TABLE sales
+(
+cust_id STRING,
+prod_num STRING,
+qty INT,
+sales_id STRING
+)
+COMMENT 'Table for analysis of sales data'
+PARTITIONED BY (sales_date STRING)
+row format delimited
+fields terminated by ','
+stored as textfile;
+
+INSERT OVERWRITE TABLE sales
+PARTITION (sales_date = '2012-01-09')
+SELECT cust_id, prod_num, qty, sales_id
+FROM sales_staging ss
+WHERE ss.sale_date = '2012-01-09';
+
+INSERT OVERWRITE TABLE sales
+PARTITION (sales_date = '2012-01-24')
+SELECT cust_id, prod_num, qty, sales_id
+FROM sales_staging ss
+WHERE ss.sale_date = '2012-01-24';
+
+SELECT * FROM sales
+WHERE sales_date = '2012-01-24'
+ORDER BY sales_id;
+
+SELECT s.cust_id, s.prod_num, s.qty, s.sales_id,
+p.prod_name, p.category
+FROM sales s JOIN products p
+ON s.prod_num = p.prod_num
+WHERE s.sales_date = '2012-01-09' AND p.category = 'Optical';
+
+
+/user/hive/warehouse/edureka.db/txnrecords/
+
+  -Category1
+     - 000000_0
+     - 000000_1
+
+
+     - 000000_9
+  |
+  |
+  |
+  -Category15
+   - 000000_0
+
+   -000000_9
+
+CREATE EXTERNAL TABLE txnrecords(
+txnno INT, txndate STRING,
+custno INT, 
+amount DOUBLE,  
+product STRING, 
+city STRING, 
+state String, 
+Spendby String )
+PARTITIONED by (category string)
+clustered by (state)
+into 10 buckets
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY ',' 
+STORED AS TEXTFILE
+
+txnno,txndate,custno,amount,product,city,state,Spendby 
+
+Partition Table
+CREATE EXTERNAL TABLE txn_ext(
+txnno INT, 
+txndate STRING, 
+custno INT, 
+amount DOUBLE,
+category STRING, 
+product STRING, 
+city STRING, 
+state String, 
+Spendby String ) 
+ROW FORMAT DELIMITED FIELDS TERMINATED BY ','
+LOCATION '/bigdatapgp/common_folder/hive_datasets/tnxn.csv';
+
+
+
+CREATE  TABLE txn_partitioned(
+txnno INT, 
+txndate STRING, 
+custno INT, 
+amount DOUBLE,
+product STRING, 
+city STRING, 
+state String, 
+Spendby String ) 
+PARTITIONED BY (category string)
+CLUSTERED BY (state) INTO 5 BUCKETS
+ROW FORMAT DELIMITED
+ FIELDS TERMINATED BY ',';
+
+
+
+
+
+
+Advanced Hive Codes
+
+Views
+
+CREATE TABLE userinfo ( firstname string, lastname string, ssn string, password string);
+
+CREATE VIEW safer_user_info AS SELECT firstname,lastname FROM userinfo;
+
+CREATE TABLE employee (firstname string, lastname string, ssn string, password string, department string);
+
+CREATE VIEW techops_employee AS SELECT firstname,lastname,ssn FROM userinfo WERE department='techops';
+
+
+CREATE VIEW IF NOT EXISTS low_transactions as 
+SELECT * FROM txnrecords WHERE amount < 150;
+
+
+ALTER VIEW low_transactions AS 
+SELECT * FROM txnrecords WHERE amount < 100;
+
+ALTER VIEW low_transactions RENAME TO lowest_transactions;
+DROP VIEW IF EXISTS lowest_transactions;
+
+
+Indexing
+
+
+CREATE INDEX index_amount ON TABLE txnrecords(amount) AS 'org.apache.hadoop.hive.ql.index.compact.CompactIndexHandler' WITH DEFERRED REBUILD;
+
+SHOW FORMATTED INDEX ON txnrecords;
+
+ALTER INDEX index_amount ON txnrecords REBUILD;
+
+DROP INDEX IF EXISTS indx_amount ON txnrecords;
+
+
+create table olympic
+(athelete STRING,age INT,country STRING,year STRING,closing STRING,
+sport STRING,gold INT,silver INT,bronze INT,total INT) 
+row format delimited
+ fields terminated by '\t' 
+ stored as textfile;
+
+ load data local inpath 'bdmjune2020/hive/olympic.csv' into table olympic;
+
+ SELECT AVG(age) from olympic;
+
+ -- note the time
+
+ CREATE INDEX olympic_index
+ON TABLE olympic (age)
+AS 'org.apache.hadoop.hive.ql.index.compact.CompactIndexHandler'
+WITH DEFERRED REBUILD;
+
+ALTER INDEX olympic_index on olympic REBUILD;
+
+show formatted index on olympic;
+
+SELECT AVG(age) from olympic;
+
+-- note the time;
+
+
+
+
+
+
+
+
+
+-- For Serde Regex--
+add jar /opt/cloudera/parcels/CDH/lib/hive/lib/hive-serde-1.1.0-cdh5.11.1.jar;
+
+CREATE TABLE serde_regex(
+  host STRING, identity STRING, user STRING, 
+  time STRING, request STRING, status STRING,
+  size STRING, referer STRING, agent STRING)
+  ROW FORMAT SERDE 'org.apache.hadoop.hive.serde2.RegexSerDe'
+  WITH SERDEPROPERTIES (
+  "input.regex" = "([^ ]*) ([^ ]*) ([^ ]*) (-|\\[[^\\]]*\\]) ([^ \"]*|\"[^\"]*\") (-|[0-9]*) (-|[0-9]*)(?: ([^ \"]*|\"[^\"]*\") ([^ \"]*|\"[^\"]*\"))?",
+  "output.format.string" = "%1$s %2$s %3$s %4$s %5$s %6$s %7$s %8$s %9$s"
+)
+STORED AS TEXTFILE;
+
+-- For Serde XML --
+add jar /mnt/home/edureka_639001/zartab/jars/hivexmlserde-1.0.5.3.jar;
+
+CREATE TABLE ebay_listing(seller_name STRING, 
+seller_rating BIGINT, bidder_name STRING, 
+location STRING, bid_history map<string,string>, 
+item_info map<string,string>)
+ROW FORMAT SERDE 'com.ibm.spss.hive.serde2.xml.XmlSerDe'
+WITH SERDEPROPERTIES (
+"column.xpath.seller_name"="/listing/seller_info/seller_name/text()",
+"column.xpath.seller_rating"="/listing/seller_info/seller_rating/text()",
+"column.xpath.bidder_name"="/listing/auction_info/high_bidder/bidder_name/text()",
+"column.xpath.location"="/listing/auction_info/location/text()",
+"column.xpath.bid_history"="/listing/bid_history/*",
+"column.xpath.item_info"="/listing/item_info/*"
+) STORED AS INPUTFORMAT 'com.ibm.spss.hive.serde2.xml.XmlInputFormat'
+OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.IgnoreKeyTextOutputFormat'
+TBLPROPERTIES ( "xmlinput.start"="<listing>", "xmlinput.end"="</listing>" );
+
+
+LOAD DATA LOCAL INPATH 'advhive/ebay.xml' OVERWRITE INTO TABLE ebay_listing;
+
+
+add jar /mnt/home/edureka_639001/zartab/jars/json-serde-1.3-jar-with-dependencies.jar
+
+create external table city_inspection(
+id string, 
+certificate_number string,
+business_name string, 
+date string, 
+result string,
+sector string, 
+address map<string, string>) 
+ROW FORMAT serde 'org.openx.data.jsonserde.JsonSerDe'
+LOCATION '/user/edureka_639001/hivedata/';
+
+ 'org.apache.hive.hcatalog.data.JsonSerDe' 
+
+id, name, age, gender, salary
+-,   -,   -,     -,      -
+-,   -,   -,     -,      -
+-,   -,   -,     -,      -
+-,   -,   -,     -,      -
+
+id:{-,-,-,-,-}
+name:{-,-,-,-,-}
+
+
+
+-- For loading data into ORC and Parquet format\
+ORC-->
+ORC is a row columnar data format highly optimized for reading,
+ writing, and processing data in Hive and it was created by Hortonworks in 2013 
+ as part of the Stinger initiative to speed up Hive.
+  ORC files are made of stripes of data where each stripe 
+  contains index, row data, and
+   footer (where key statistics such as count, max, min, 
+   and sum of each column are conveniently cached).
+
+
+Parquet is a row columnar data format created by
+ Cloudera and Twitter in 2013. Parquet files consist of
+  row groups, header, and footer, and in each row group data 
+  in the same columns are stored together. 
+  Parquet is specialized in efficiently storing and processing nested data types.
+
+
+CREATE EXTERNAL TABLE tripdata(
+Trip_ID string,  Taxi_ID string,  Trip_Start_Timestamp string,  Trip_End_Timestamp string,  Trip_Seconds int,  Trip_Miles double, Pickup_Census_Tract bigint,  Dropoff_Census_Tract bigint, Pickup_Community_Area int, Dropoff_Community_Area int, Fare double, Tips double, Tolls double, Extras double, Trip_Total double,  Payment_Type string, Company string,  Pickup_Centroid_Latitude double, Pickup_Centroid_Longitude double, Pickup_Centroid_Location string, Dropoff_Centroid_Latitude double,  Dropoff_Centroid_Longitude double, Dropoff_Centroid_Location string,  Community_Areas int )
+ROW FORMAT DELIMITED FIELDS TERMINATED BY ','
+LOCATION '/bigdatapgp/common_folder/midproject/taxi_trip_dataset1'
+TBLPROPERTIES('skip.header.line.count'='1' ) ;
+ 
+
+ ----Creating table for orc and storing value in it.
+
+CREATE TABLE tripdata_orc(
+Trip_ID string, Taxi_ID string, Trip_Start_Timestamp string, Trip_End_Timestamp string, Trip_Seconds int, Trip_Miles double, Pickup_Census_Tract bigint, Dropoff_Census_Tract bigint, Pickup_Community_Area int, Dropoff_Community_Area int, Fare double, Tips double, Tolls double, Extras double, Trip_Total double, Payment_Type string, Company string, Pickup_Centroid_Latitude double, Pickup_Centroid_Longitude double, Pickup_Centroid_Location string, Dropoff_Centroid_Latitude double, Dropoff_Centroid_Longitude double, Dropoff_Centroid_Location string, Community_Areas int )
+STORED AS orc;
+
+
+INSERT INTO tripdata_orc SELECT * FROM tripdata;
+
+---Creating table for parquet and storing value in it.
+
+
+CREATE TABLE tripdata_parquet(
+Trip_ID string, Taxi_ID string, Trip_Start_Timestamp string, Trip_End_Timestamp string, Trip_Seconds int, Trip_Miles double, Pickup_Census_Tract bigint, Dropoff_Census_Tract bigint, Pickup_Community_Area int, Dropoff_Community_Area int, Fare double, Tips double, Tolls double, Extras double, Trip_Total double, Payment_Type string, Company string, Pickup_Centroid_Latitude double, Pickup_Centroid_Longitude double, Pickup_Centroid_Location string, Dropoff_Centroid_Latitude double, Dropoff_Centroid_Longitude double, Dropoff_Centroid_Location string, Community_Areas int )
+STORED AS parquet;
+
+
+
+INSERT INTO tripdata_parquet SELECT * FROM tripdata;
+
+--to check the sizes
+
+hdfs dfs -du -h /user/hive/warehouse/hive_examples.db/ | grep trip 
+hdfs dfs -du -h /bigdatapgp/common_folder/midproject/taxi_trip_dataset1
+
+To check the time used
+
+SELECT DISTINCT(tips) FROM tripdata WHERE payment_type="Cash" LIMIT 10;
+
+
+
+SELECT DISTINCT(tips) FROM tripdata_orc WHERE payment_type="Cash" LIMIT 10;
+
+
+SELECT DISTINCT(tips) FROM tripdata_parquet WHERE payment_type="Cash" LIMIT 10;
+
+
+-- Creating UDF
+
+CREATE  TABLE student(
+stud_id int,
+name string, 
+class int,
+tot_marks double, 
+math double, 
+english double, 
+physics double, 
+social_study double, 
+year string
+)
+ROW FORMAT DELIMITED 
+FIELDS TERMINATED BY '\,' 
+STORED AS INPUTFORMAT 
+'org.apache.hadoop.mapred.TextInputFormat' 
+OUTPUTFORMAT 
+'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat';
+
+
+
+!. Write a Java Class and extend to UDF
+
+2. Create a Jar files
+
+3. Add the jar file to hive
+
+4. Create Temporary function
+
+
+
+
+
+
+
+
+------------------------ Java Code -------------------
+
+
+package com.hive.udf;
+import org.apache.hadoop.hive.ql.exec.UDF;
+public class GetMaxMarks extends UDF{
+	public double evaluate (double math,double eng,double physics,double social)
+	{
+                double maxMarks=math;
+		if(eng>maxMarks)
+		{
+	 		maxMarks = eng;
+		}
+		if(physics>maxMarks)
+		{
+			maxMarks=physics;
+		}
+		if(social>maxMarks)
+		{
+			maxMarks=social;
+		}		
+		return maxMarks;
+	}
+}
+
+
+javac -cp hivejar.jar -d . GetMaxMarks.java
+
+jar -cvf marks.jar com
+
+add jar /mnt/home/edureka_639001/advhive/marks.jar
+
+CREATE temporary function GetMaxMarks as 'com.hive.udf.GetMaxMarks';
+
+select name,GetMaxMarks(math,english,physics,social_study) from student;
+
+
+
+  

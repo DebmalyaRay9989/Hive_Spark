@@ -1,0 +1,21 @@
+hive> create table employee
+    > (id int,
+    > name string,
+    > salary float,
+    > dept string)
+    > row format delimited
+    > fields terminated by ','
+    > stored as textfile;
+NoViableAltException(116@[])
+        at org.apache.hadoop.hive.ql.parse.HiveParser.type(HiveParser.java:39101)
+        at org.apache.hadoop.hive.ql.parse.HiveParser.colType(HiveParser.java:38866)
+        at org.apache.hadoop.hive.ql.parse.HiveParser.columnNameType(HiveParser.java:38566)
+        at org.apache.hadoop.hive.ql.parse.HiveParser.columnNameTypeList(HiveParser.java:36
+789)
+        at org.apache.hadoop.hive.ql.parse.HiveParser.createTableStatement(HiveParser.java:
+5057)
+        at org.apache.hadoop.hive.ql.parse.HiveParser.ddlStatement(HiveParser.java:2557)
+        at org.apache.hadoop.hive.ql.parse.HiveParser.execStatement(HiveParser.java:1589)
+        at org.apache.hadoop.hive.ql.parse.HiveParser.statement(HiveParser.java:1065)
+        at org.apache.hadoop.hive.ql.parse.ParseDriver.parse(ParseDriver.java:201)
+        

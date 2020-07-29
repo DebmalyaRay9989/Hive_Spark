@@ -1,0 +1,87 @@
+Spark Framework
+---------------
+
+Batch analysis			- Spark Core and Spark SQL
+Streaming analysis			- Spark Streaming
+Machine learning component	- Spark MLlib
+Graph processing component	- Spark GraphX
+
+RDD - Resilient Distributed Dataset 
+
+Spark Core Vs SQL
+----------------
+
+Scenario:
+--------
+
+ArisconCars file --- sensorID, CarID, Lattitude, longitude....TypeOfMessage
+
+Req:
+
+1. Filter few columns from source file
+2. Filter only valid sensorID records --- discard records containing ? as sensorID
+3. Filter only ERR messages
+4. Apply aggregation to compute the count of err messages produced by cars
+
+Steps:
+-----
+
+1. Load the dataset and create a RDD --- sc.textFile()
+2. Filter columns 
+	a. split the columns based on delimiter and create an Array[string]
+	b. based on the index number of columns, fetch only those columns
+3. FIlter on record for valid sensorID
+	contains()
+4. Apply filter on TypeofMessage column 	
+	startsWith() - ERR
+	contains() - ERR
+5. Apply aggregation using reduceByKey() - count of err msgs produced by cars (carID)
+
+Demo:
+------
+
+//Loading a text file in to an RDD
+val Car_Info = sc.textFile("/HDFSPath/ArisconnCars.txt");
+
+-- val Car_Info = sc.textFile("DIVHDFS/ArisconnCarsLite.txt"); *Transformation
+-- Car_Info.collect(); ---- display the sample data of RDD *Action
+-- Car_info.collect.foreach(println) ---- display the data line by line *Action
+
+Lazy evaluation -- All transformation statements gets executed collectively once it identified its action statement
+Directed Acyclic Graph (or) Lineage graph -- set of transformation statements with one or two action statements
+
+//Referring the header of the file
+val header = Car_Info.first();
+
+first() - is an action statement used to display the first record of a RDD
+
+//Removing header and splitting records with ',' as delimiter and fetching relevant fields
+
+Wanted to fetch ---- Sensor id, Car id, Latitude, Longitude, Vehicle Speed, TypeOfMessage
+
+val Car_temp = Car_Info.filter(record => record!=header).map(_.split(",")).map(c =>(c(0),c(1),c(2).toDouble,c(3).toDouble,c(6).toInt,c(9)));
+
+-- map() -- applies on record level --------- Array[Array[string]]
+-- flatMap() -- applies on item / atom level -- Array[string]
+
+-- val Car_temp = Car_Info.filter(record => record!=header).map(_.split(",")).map(c =>(c(0),c(1),c(2).toDouble,c(3).toDouble,c(6).toInt,c(9)));
+
+-- val Car_temp = Car_Info.filter(record => record!=header).flatMap(_.split(",")).map(c =>(c(0),c(1),c(2).toDouble,c(3).toDouble,c(6).toInt,c(9))); --- flatMap is not a valid function in this req **
+
+//Filtering only valid records(records not starting with '?'), and _._1 refers to first field (sensorid)
+val Car_Eng_Specs = Car_temp.filter(!_._1.startsWith("?"));
+
+-- val Car_Eng_Specs = Car_temp.filter(!_._1.startsWith("?")); -- with NOT operator
+-- val Car_Eng_Specs1 = Car_temp.filter(_._1.startsWith("SEN_")); -- without NOT operator
+-- val Car_Eng_Specs2 = Car_temp.filter(_.startsWith("?")); -- without reference field
+
+-- val rdd4 = rdd3.filter(_.startsWith("ERROR")); *** example not related to this req
+
+//Filtering records holding only error messages and _._6 refers to 6th field (Typeofmessage)
+val Car_Error_logs = Car_Eng_Specs.filter(_._6.startsWith("ERR"));
+
+//compute the count of err messages produced by cars (carID)
+
+val Car1Errors = Car_Error_logs.filter(_._2.startsWith("CAR_34853")).count();
+
+******************************************************************************************************

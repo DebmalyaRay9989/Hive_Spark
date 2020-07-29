@@ -1,0 +1,84 @@
+. Introduction of Spark DataSets vs DataFrame
+2.1. DataFrames
+DataFrames gives a schema view of data basically, it is an abstraction. In dataframes, view of data is organized as columns with column name and types info. In addition, we can say data in dataframe is as same as the table in relational database.
+
+As similar as RDD, execution in dataframe too is lazy triggered. Moreover, to allow efficient processing datasets is structure as a distributed collection of data. Spark also uses catalyst optimizer along with dataframes.
+
+2.2. DataSets
+In Spark, datasets are an extension of dataframes. Basically, it earns two different APIs characteristics, such as strongly typed and untyped. Datasets are by default a collection of strongly typed JVM objects, unlike dataframes. Moreover, it uses Spark’s Catalyst optimizer. For exposing expressions & data field to a query planner.
+
+3. Comparison: Spark DataFrame vs DataSets, on the basis of Features
+Let’s discuss the difference between apache spark Datasets &  spark DataFrame, on the basis of their features:
+
+3.1. Spark Release
+DataFrame- In Spark 1.3 Release, dataframes are introduced.
+
+DataSets- In Spark 1.6 Release, datasets are introduced.
+
+3.2. Data Formats
+DataFrame-  Dataframes organizes the data in the named column. Basically, dataframes can efficiently process unstructured and structured data. Also, allows the Spark to manage schema.
+
+DataSets-  As similar as dataframes, it also efficiently processes unstructured and structured data. Also, represents data in the form of a collection of row object or JVM objects of row. Through encoders, is represented in tabular forms.
+
+3.3. Data Representation
+DataFrame-  In dataframe data is organized into named columns. Basically,  it is as same as a table in a relational database.
+
+DataSets-  As we know, it is an extension of dataframe API, which provides the functionality of type-safe, object-oriented programming interface of the RDD API. Also, performance benefits of the Catalyst query optimizer.
+
+3.4. Compile-time type safety
+DataFrame- There is a case if we try to access the column which is not on the table. Then, dataframe APIs does not support compile-time error.
+
+DataSets- Datasets offers compile-time type safety.
+
+3.5. Data Sources API
+DataFrame- It allows data processing in different formats, for example, AVRO, CSV, JSON, and storage system HDFS, HIVE tables, MySQL.
+
+DataSets- It also supports data from different sources.
+
+3.6. Immutability and Interoperability
+DataFrame- Once transforming into dataframe, we cannot regenerate a domain object.
+
+DataSets- Datasets overcomes this drawback of dataframe to regenerate the RDD from dataframe. It also allows us to convert our existing RDD and dataframes into datasets.
+
+3.7. Efficiency/Memory use
+DataFrame- By using off-heap memory for serialization, reduce the overhead.
+
+DataSets-  It allows to perform an operation on serialized data. Also, improves memory usage.
+
+3.8. Serialization
+DataFrame- In dataframe, can serialize data into off-heap storage in binary format. Afterwards, it performs many transformations directly on this off-heap memory.
+
+DataSets-  In Spark, dataset API has the concept of an encoder. Basically, it handles conversion between JVM objects to tabular representation. Moreover, by using spark internal tungsten binary format it stores, tabular representation. Also, allows to perform an operation on serialized data and also improves memory usage.
+
+3.9. Lazy Evolution
+DataFrame- As same as RDD, Spark evaluates dataframe lazily too.
+
+DataSets- As similar to RDD, and Dataset it also evaluates lazily.
+
+3.10. Optimization
+DataFrame- Through spark catalyst optimizer, optimization takes place in dataframe.
+
+DataSets- For optimizing query plan, it offers the concept of dataframe catalyst optimizer.
+
+3.11. Schema Projection
+DataFrame- Through the Hive meta store, it auto-discovers the schema. We do not need to specify the schema manually.
+
+DataSets- Because of using spark SQL engine, it auto discovers the schema of the files.
+
+3.12. Programming Language Support
+DataFrame- In 4 languages like Java, Python, Scala, and R dataframes are available.
+
+DataSets- Only available in Scala and Java.
+
+3.13. Usage of Datasets and Dataframes
+DataFrame-
+
+If low-level functionality is there.
+Also, if high-level abstraction is required.
+DataSets-
+
+For high-degree safety at runtime.
+To take advantage of typed JVM objects.
+Also, take advantage of the catalyst optimizer.
+To save space.
+It required faster execution.

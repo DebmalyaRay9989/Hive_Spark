@@ -1,0 +1,26 @@
+RDD
+
+Person 
+
+val p=Person(1,'Tom');
+
+
+RDD --> 
+ rdd............();
+
+
+subset of RDD
+RDD+ Schema
+DataFrame -->
+
+Select * fron Person;
+
+
+Kantesh Doubt
+
+Costing in Mongo Atlas
+Direct Cache at CLient end
+IOPS
+
+
+

@@ -1,0 +1,324 @@
+Hadoop framework
+-----------------
+
+Core components
+---------------
+
+HDFS --- Hadoop distributed File system - Storage
+MapReduce --- Process -- Programming language 
+YARN --- Yet Another Resource Negotiator --- Manage and schedule
+
+HDFS --- Unix command 
+
+-- hadoop fs -<unix command>
+-- hadoop fs -ls ------ list all my directories / files
+-- hadoop fs -cat student.txt --- display the content of the file
+
+-- hdfs dfs -<unix command>
+-- hdfs dfs -ls
+-- hdfs dfs -cat 
+
+MapReduce
+
+Programming language - Java 8 
+
+Ecosystem components
+--------------------
+
+Hive 
+- datawarehouse component
+- querying and analysis
+- hive query language -- SQL
+- Structured one 
+
+Pig
+- scripting platform 
+- Pig Latin 
+- ETL operations ---- in-built operators -- filter, rank, distict, group.. etc
+- can handle all types of data 
+
+Sqoop 
+- Data migration
+- between hadoop and RDBMS 
+- import (RDBMS -- hadoop)
+- Export (Hadoop --- RDBMS)
+
+*****************************************************************************************
+
+Scenario:
+
+Req: Identify duplicate records
+
+1 RTR1 1/20/2020 1902 2938 INFO Workswell 99% --- key
+
+1 -- value
+
+(1 RTR1 1/20/2020 1902 2938 INFO Workswell 99%, 1)
+
+key - value 
+
+Apply aggregation on value column based out of key
+
+Spark.txt
+This is Spark session
+This is VCR session
+
+Word count ---- occurences of words 
+
+1. Create an array by splitting based on the delimiter the words from sentences
+
+[This, is, Spark, session, This, is, VCR, session] 
+
+2. Append 1 with every word and create a key, value pair
+
+[
+(This, 1), (is, 1), (Spark, 1), (session, 1)
+(This, 1), (is, 1), (VCR, 1), (session, 1) 
+]
+
+3. Consider only the key and value pairs
+(This, 1), (is, 1), (Spark, 1), (session, 1)
+(This, 1), (is, 1), (VCR, 1), (session, 1)
+
+4. Apply sum on value column based on key (group by key count/sum on value)
+(This, 2)
+(is, 2)
+(Spark, 1)
+(VCR, 1)
+(session, 2)
+
+Map - takes input from HDFS and convert it into key-value pair
+
+reduce - take key - value pair from Mapper and apply aggregate function on value based on key
+
+*****************************************************************************************
+
+Mapreduce challenges:
+
+lines of code is high
+processing time is high 
+unsupported to real time data
+Unsupport ML algo
+Unsupport graph data processing 
+
+Why Spark?
+
+In-memory compution tool - RAM 
+lines of code is less 
+Spark Streaming 
+Spark MLlib
+Spark GraphX
+
+*****************************************************************************************
+
+Spark DAG
+Spark RDD 
+
+HDFS - hadoop.txt - 200MB - 4 data blocks - rdd[1], rdd[2], rdd[3], rdd[4]---- RDD
+
+HDFS - datafiles / file
+hadoop fs -put student.txt DIVHDFS
+
+Hive - table
+CREATE TABLE student (rollno INT, name STRING);
+
+Pig - relations
+student = LOAD 'student.txt';
+
+Spark - RDD -- collection of blocks coming from data file 
+Doesnt store anything -- pointer reference variable 
+
+Spark statements:
+
+Transformation - used to parse / manipulate / filter / transform the data
+
+Action - used to produce final result / aggregation
+
+Multiple transformation statements create DAG (Direct Acyclic Graph)
+
+sample DAG
+-----------
+val rdd1 = sc.textFile(student.txt);
+val rdd2 = rdd1.split()
+val rdd3 = rdd2.filter()
+val rdd4 = rdd3.map().reduceby();
+rdd3.collect(); ------- action - displays the content of rdd3
+
+every transformation statement gets evaluated LAZILY once its found the action statement
+--- LAZY EVALUATION
+
+Multiple action statement
+-------------------------
+val rdd1 = sc.textFile(student.txt);
+val rdd2 = rdd1.split()
+val rdd3 = rdd2.filter()
+val rdd4 = rdd3.map().reduceby();
+rdd3.collect();
+rdd4.collect();
+
+Spark architecture
+------------------
+
+Sparkcontext --- entry point -- transformation and manipulation
+
+worker node --- executor --- executing the task 
+
+Steps:
+
+1. SparkContext gets created 
+2. SC checks for resources in cluster resource manager
+3. scheduling and assigning work to slave nodes
+4. slave nodes give work to the executor 
+5. executor executes the task and send the final output
+
+
+Fault-tolerant
+---------------
+
+val rdd1 = sc.textFile(student.txt); --- load
+val rdd2 = rdd1.split() --- split
+val rdd3 = rdd2.filter() -- filter
+val rdd4 = rdd3.map().reduceby(); -- map
+rdd3.collect(); -- action1
+
+rdd1 created
+rdd2 created 
+while executing 3rd statement, machine failure occured
+
+no where the execution gets stopped. None of the rdds are lost
+rdd3 created
+
+Since its a DAG plan (logical plan), user or executor can traverse through the plan
+
+*****************************************************************************************
+
+Laboncloud users - /user/LabOnCloud - parent directory - HDFS
+
+load the dataset in HDFS
+------------------------
+
+hadoop fs -mkdir DIVHDFS
+
+hadoop fs -ls 
+
+hadoop fs -put RouterLog_sample.tsv DIVHDFS
+
+Copy file from one HDFS dir to another
+hadoop fs -cp /user/LabOnCloud/RouterLog_sample tsv <directory>
+
+hadoop fs -ls DIVHDFS
+
+hadoop fs -cat DIVHDFS/RouterLog_sample.tsv
+
+*****************************************************************************************
+spark-shell
+
+Req 1: Filter the error record
+
+> Load dataset
+val rdd1 = sc.textFile("DIVHDFS/Routerlog.tsv");
+
+val rdd1 = sc.textFile("DIVHDFS/RouterLog_sample.tsv");
+*rdd1.collect(); --- sample data from RDD
+*rdd1.collect.foreach(println); --- entire data line by line
+
+> Split the columns based on delimiters (\t)
+val rdd2 = rdd1.map(_.split("\t"));
+
+_ is a place holder which can hold one or more parameters. 
+
+>Filter only required columns (index 8 and 9) -> messageType and Message
+val rdd3 = rdd2.map(r=>(r(8)+","+r(9)));
+
+ERROR, <message>
+
+> Filter only error codes
+val rdd4 = rdd3.filter(_.startsWith("ERROR"));
+
+> Count Rtr1 and Rtr2 records
+val R1Errs = rdd4.filter(_.contains("RTR1")).count();
+val R2Errs = rdd4.filter(_.contains("RTR2")).count();
+
+rdd4.saveAsTextFile("DIVHDFS/req1");
+
+val R1Errs = rdd4.filter(_.contains("RTR1")).filter(_.contains("fail")).count(); ---- example for multiple filter at once
+
+rdd4.collect.foreach(println); ---> display the data line by line
+
+*****************************************************************************************
+
+
+Req 2: Identify the duplicate log entries
+
+> Load dataset
+val lines= sc.textFile("DIVHDFS/RouterLog_sample.tsv");
+
+> create pair RDDs
+val pairs = lines.map(s => (s, 1));
+
+> aggregation
+val counts = pairs.reduceByKey((a, b) => a + b);
+
+*****************************************************************************************
+
+Case class
+------------
+
+giving a schema / structure 
+
+Sample datasets:
+-------------------
+BankCustomer.tsv -> custId:Int, Name:String, Pid:Int
+BankSale.tsv -> pid:Int, pname:String, price:long
+
+SELECT c.custid, c.name, p.pid, p.pname FROM customer c JOIN sale p ON p.pid=c.pid;
+
+case class customer(custId:Int, Name:String, pid:Int);
+case class sale(pid:Int, pname:String, price:Long);
+
+Generate a RDD pairs using case class;
+
+(k,v) ---> K = common column, v = case class object 
+
+val cust1 = sc.textFile("DIVHDFS/BankCustomer.txt");
+
+val cust2 = cust1.map(_.split("\t"));
+
+val sal1 = sc.textFile("DIVHDFS/BankSale.txt");
+
+val sal2 = sal1.map(_.split(","));
+
+val cust3 = cust2.map(r => common column, case class object)
+
+val cust3 = cust2.map(r => (r(2).toInt, customer(r(0).toInt, r(1), r(2).toInt)));
+
+**val cust3 = cust2.map(r => (r(2).toInt,customer(r(0).toInt,r(1),r(2).toInt)));
+
+val sal3 = sal2.map(r => (common column, case class object))
+
+val sal3 = sal2.map(r => (r(0).toInt, sale(r(0).toInt,r(1),r(2).toInt)));
+
+join
+----
+
+cust3.join(sal3).collect();
+
+*****************************************************************************************
+
+val rdd1 = sc.parallelize(); ---- free flow text
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

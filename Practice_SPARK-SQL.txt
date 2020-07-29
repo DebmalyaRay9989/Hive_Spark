@@ -1,0 +1,822 @@
+edureka_918210
+
+edureka_918210xyqij
+
+=================================================================================================================================================================================
+
+Take the data from hdfs
+========================
+
+var myRdd=sc.textFile("/user/edureka_918210/Deb_DataSets/emp.txt")
+
+myRdd.collect
+
+myRdd.map(x=>x.split(","));
+
+case class EmpClass(empId:Int, name:String,age:Int,salary:Float,dept:String);
+
+myRdd.map(x=>x.split(",")).map(x=>EmpClass(x(0).toInt,x(1),x(2).toInt,x(3).toFloat,x(4)));
+
+var cRdd=myRdd.map(x=>x.split(",")).map(x=>EmpClass(x(0).toInt,x(1),x(2).toInt,x(3).toFloat,x(4)));
+cRdd.collect
+var myDF=cRdd.toDF
+myDF.show
+
+
+scala> myDF.show
++-----+---------+---+------+-------+
+|empId|     name|age|salary|   dept|
++-----+---------+---+------+-------+
+|    1|  Sheldon| 30|5000.0|     IT|
+|    2|  Leonard| 29|3500.0|     HR|
+|    3|    Penny| 29|2300.0|     IT|
+|    4|      Raj| 32|3200.0|     HR|
+|    5|   Howard| 31|4300.0|Finance|
+|    6|Bernadate| 29|3500.0|     IT|
+|    7|      Amy| 30|3210.0|Finance|
++-----+---------+---+------+-------+
+scala> myDF.printSchema
+root
+ |-- empId: integer (nullable = true)
+ |-- name: string (nullable = true)
+ |-- age: integer (nullable = true)
+ |-- salary: float (nullable = true)
+ |-- dept: string (nullable = true)
+
+
+scala> myDF.select("name","age").show
++---------+---+
+|     name|age|
++---------+---+
+|  Sheldon| 30|
+|  Leonard| 29|
+|    Penny| 29|
+|      Raj| 32|
+|   Howard| 31|
+|Bernadate| 29|
+|      Amy| 30|
++---------+---+
+
+scala> myDF.filter("dept='IT'").show
++-----+---------+---+------+----+
+|empId|     name|age|salary|dept|
++-----+---------+---+------+----+
+|    1|  Sheldon| 30|5000.0|  IT|
+|    3|    Penny| 29|2300.0|  IT|
+|    6|Bernadate| 29|3500.0|  IT|
++-----+---------+---+------+----+
+
+myDF.filter("dept='IT'").show
+// Detected repl transcript. Paste more, or ctrl-D to finish.
++-----+---------+---+------+----+
+|empId|     name|age|salary|dept|
++-----+---------+---+------+----+
+|    1|  Sheldon| 30|5000.0|  IT|
+|    3|    Penny| 29|2300.0|  IT|
+|    6|Bernadate| 29|3500.0|  IT|
++-----+---------+---+------+----+
+
+
+scala> 
+
+scala> myDF.orderBy(col("dept")).show
++-----+---------+---+------+-------+
+|empId|     name|age|salary|   dept|
++-----+---------+---+------+-------+
+|    7|      Amy| 30|3210.0|Finance|
+|    5|   Howard| 31|4300.0|Finance|
+|    2|  Leonard| 29|3500.0|     HR|
+|    4|      Raj| 32|3200.0|     HR|
+|    1|  Sheldon| 30|5000.0|     IT|
+|    3|    Penny| 29|2300.0|     IT|
+|    6|Bernadate| 29|3500.0|     IT|
++-----+---------+---+------+-------+
+scala> 
+scala> myDF.orderBy(col("dept").desc).show
++-----+---------+---+------+-------+
+|empId|     name|age|salary|   dept|
++-----+---------+---+------+-------+
+|    6|Bernadate| 29|3500.0|     IT|
+|    1|  Sheldon| 30|5000.0|     IT|
+|    3|    Penny| 29|2300.0|     IT|
+|    2|  Leonard| 29|3500.0|     HR|
+|    4|      Raj| 32|3200.0|     HR|
+|    5|   Howard| 31|4300.0|Finance|
+|    7|      Amy| 30|3210.0|Finance|
++-----+---------+---+------+-------+
+scala> 
+scala> myDF.orderBy(col("dept").desc,col("salary")).show
++-----+---------+---+------+-------+
+|empId|     name|age|salary|   dept|
++-----+---------+---+------+-------+
+|    3|    Penny| 29|2300.0|     IT|
+|    6|Bernadate| 29|3500.0|     IT|
+|    1|  Sheldon| 30|5000.0|     IT|
+|    4|      Raj| 32|3200.0|     HR|
+|    2|  Leonard| 29|3500.0|     HR|
+|    7|      Amy| 30|3210.0|Finance|
+|    5|   Howard| 31|4300.0|Finance|
++-----+---------+---+------+-------+
+
+scala> 
+scala> myDF.select(col("name"),expr("salary * 1.1")).show
++---------+------------------+
+|     name|    (salary * 1.1)|
++---------+------------------+
+|  Sheldon|            5500.0|
+|  Leonard|3850.0000000000005|
+|    Penny|            2530.0|
+|      Raj|3520.0000000000005|
+|   Howard|            4730.0|
+|Bernadate|3850.0000000000005|
+|      Amy|3531.0000000000005|
++---------+------------------+
+scala> 
+scala> myDF.select(col("name"),expr("salary * 1.25") as "Revised Salary").show
++---------+--------------+
+|     name|Revised Salary|
++---------+--------------+
+|  Sheldon|        6250.0|
+|  Leonard|        4375.0|
+|Bernadate|        4375.0|
+|    Penny|        2875.0|
+|      Raj|        4000.0|
+|   Howard|        5375.0|
+|Bernadate|        4375.0|
+|      Amy|        4012.5|
++---------+--------------+
+
+
+scala> 
+
+scala> myDF.select(expr("name"),expr("salary +1500"),expr("name like 'P%'")).show
++---------+---------------+------------+
+|     name|(salary + 1500)|name LIKE P%|
++---------+---------------+------------+
+|  Sheldon|         6500.0|       false|
+|  Leonard|         5000.0|       false|
+|    Penny|         3800.0|        true|
+|      Raj|         4700.0|       false|
+|   Howard|         5800.0|       false|
+|Bernadate|         5000.0|       false|
+|      Amy|         4710.0|       false|
++---------+---------------+------------+
+
+scala> 
+===============================================================================================================================================================================
+
+StudentData
+============
+
+
+val myFile=sc.textFile("/user/edureka_918210/Deb_DataSets/Student.txt")
+val myFile1 = myFile.map(x=>x.split(";"))
+myFile1.toDF()
+var myDF1=myFile1.toDF()
+myDF1.show
+myDF1.show(false)
+
+===============================================================================================================================================================================
+
+ AAON.txt
+==========
+
+val myFile_Imp=sc.textFile("/user/edureka_918210/Deb_DataSets/AAON.txt")
+val myFile_Imp1 = myFile_Imp.map(x=>x.split(";"))
+myFile_Imp1.toDF()
+var myDF_Imp=myFile_Imp1.toDF()
+myDF_Imp.show
+myDF_Imp.show(false)
+
+===============================================================================================================================================================================
+
+var myDF=spark.read.format("csv").option("delimiter",",").option("header","false").load("/user/edureka_639001/emp.txt")
+
+myDF.printSchema
+root
+ |-- _c0: string (nullable = true)
+ |-- _c1: string (nullable = true)
+ |-- _c2: string (nullable = true)
+ |-- _c3: string (nullable = true)
+ |-- _c4: string (nullable = true)
+
+
+var myDF=spark.read.format("csv").option("delimiter",",").option("header","false").option("inferSchema","true").load("/user/edureka_639001/emp.txt").toDF(column Names here)
+
+
+
+myDF.select(col("_c0").cast(org.apache.spark.sql.types.IntegerType))
+
+myDF.toDF("empID","name","age","salary","dept")
+
+
+
+groupBy-----------
+
+myDF.groupBy("dept").agg(count(col("empID")),sum(col("salary"))).show
+
+myDF.groupBy("dept","age").agg(count(col("empID")),sum(col("salary"))).show
+
+myDF.groupBy("dept").agg(Map("salary"->"sum","empID"->"count")).show
+
+===============================================================================================================================================================================
+
+people.json
+============
+
+
+
+scala> val df = spark.read.json("/user/edureka_918210/Deb_DataSets/people.json")
+df: org.apache.spark.sql.DataFrame = [_corrupt_record: string]                  
+scala> df.printSchema()
+root
+ |-- _corrupt_record: string (nullable = true)
+scala> df.show(false)
++-----------------------------------------------+
+|_corrupt_record                                |
++-----------------------------------------------+
+|{"name":"Michael", "age" : 29, "dept":TalentAQ}|
+|{"name":"Andy", "age":30, "dept":Finance}      |
+|{"name":"Jack", "age":40, "dept":HR}           |
+|{"name":"Harry", "age":50, "dept":TalentAQ}    |
++-----------------------------------------------+
+scala> 
+
++-----------------------------------------------+
+|_corrupt_record                                |
++-----------------------------------------------+
+|{"name":"Michael", "age" : 29, "dept":TalentAQ}|
+|{"name":"Andy", "age":30, "dept":Finance}      |
+|{"name":"Jack", "age":40, "dept":HR}           |
+|{"name":"Harry", "age":50, "dept":TalentAQ}    |
++-----------------------------------------------+
+
+
+df.createOrReplaceTempView("people")
+
+var peopleData=spark.sql("Select * from people");
+
+peopleData.show(false)
+
+===============================================================================================================================================================================
+
+ val people_p1 = sqlContext.jsonFile("/user/edureka_918210/Deb_DataSets/people.json")
+people_p1.registerTempTable("people")
+val firstpeople = sqlContext.sql("SELECT * FROM people")
+firstpeople.collect.foreach(println)
+
+
+===============================================================================================================================================================================
+import org.apache.spark.sql.types.StructType
+
+val schema = new StructType().add($"name".long.copy(nullable = false)).add($"age".int).add($"dept".string)
+
+import org.apache.spark.sql.DataFrame
+var myDF=spark.read.schema(schema).format("json").option("delimiter",",").option("header","false").load("/user/edureka_918210/Deb_DataSets/people.json")
+
+myDF.show()
+
+
+
+val df = sqlContext.read.json("/user/edureka_918210/Deb_DataSets/people.json")
+val events = sc.parallelize(/user/edureka_918210/Deb_DataSets/people.json)
+
+
+
+Loading file through session
+==============================
+SPARK_CSV FILE
+==============
+
+/user/edureka_918210/Deb_DataSets/flight.csv
+
+spark.read.format("csv").option("delimiter",",").option("header","false").load("/user/edureka_918210/Deb_DataSets/flight.csv")
+
+var myDF_flight=spark.read.format("csv").option("delimiter",",").option("header","false").load("/user/edureka_918210/Deb_DataSets/flight.csv")
+
+
+scala> myDF_flight.printSchema
+root
+ |-- _c0: string (nullable = true)
+ |-- _c1: string (nullable = true)
+ |-- _c2: string (nullable = true)
+ |-- _c3: string (nullable = true)
+ |-- _c4: string (nullable = true)
+ |-- _c5: string (nullable = true)
+ |-- _c6: string (nullable = true)
+scala> 
+scala> 
+scala> myDF_flight.show(false)
++----+-----------+---------------+----+----------------+----------------+-------+
+|_c0 |_c1        |_c2            |_c3 |_c4             |_c5             |_c6    |
++----+-----------+---------------+----+----------------+----------------+-------+
+|99  |Los Angeles|Washington D.C.|2308|2005/04/12 09:30|2005/04/12 21:40|235.98 |
+|13  |Los Angeles|Chicago        |1749|2005/04/12 08:45|2005/04/12 20:45|220.98 |
+|346 |Los Angeles|Dallas         |1251|2005/04/12 11:50|2005/04/12 19:05|225.43 |
+|387 |Los Angeles|Boston         |2606|2005/04/12 07:03|2005/04/12 17:03|261.56 |
+|7   |Los Angeles|Sydney         |7487|2005/04/12 22:30|2005/04/14 6:10 |1278.56|
+|2   |Los Angeles|Tokyo          |5478|2005/04/12 12:30|2005/04/13 15:55|780.99 |
+|33  |Los Angeles|Honolulu       |2551|2005/04/12 09:15|2005/04/12 11:15|375.23 |
+|34  |Los Angeles|Honolulu       |2551|2005/04/12 12:45|2005/04/12 15:18|425.98 |
+|76  |Chicago    |Los Angeles    |1749|2005/04/12 08:32|2005/04/12 10:03|220.98 |
+|68  |Chicago    |New York       |802 |2005/04/12 09:00|2005/04/12 12:02|202.45 |
+|7789|Madison    |Detroit        |319 |2005/04/12 06:15|2005/04/12 08:19|120.33 |
+|701 |Detroit    |New York       |470 |2005/04/12 08:55|2005/04/12 10:26|180.56 |
+|702 |Madison    |New York       |789 |2005/04/12 07:05|2005/04/12 10:12|202.34 |
+|4884|Madison    |Chicago        |84  |2005/04/12 22:12|2005/04/12 23:02|112.45 |
+|2223|Madison    |Pittsburgh     |517 |2005/04/12 08:02|2005/04/12 10:01|189.98 |
+|5694|Madison    |Minneapolis    |247 |2005/04/12 08:32|2005/04/12 09:33|120.11 |
+|304 |Minneapolis|New York       |991 |2005/04/12 10:00|2005/04/12 1:39 |101.56 |
+|149 |Pittsburgh |New York       |303 |2005/04/12 09:42|2005/04/12 12:09|116.50 |
++----+-----------+---------------+----+----------------+----------------+-------+
+
+SPARK_CSV FILE
+==============
+Automatic TypeCast
+==================
+
+var myDF_flight1=spark.read.format("csv").option("delimiter",",").option("header","false").option("inferSchema","true").load("/user/edureka_918210/Deb_DataSets/flight.csv")
+
+scala> myDF_flight1.printSchema
+root
+ |-- _c0: integer (nullable = true)
+ |-- _c1: string (nullable = true)
+ |-- _c2: string (nullable = true)
+ |-- _c3: integer (nullable = true)
+ |-- _c4: string (nullable = true)
+ |-- _c5: string (nullable = true)
+ |-- _c6: double (nullable = true)
+
+
+var myDF_flight_new=spark.read.format("csv").option("delimiter",",").option("header","false").option("inferSchema","true").load("/user/edureka_918210/Deb_DataSets/flight.csv").toDF("Airport_ID","Departure","Arrival","Flight_ID","Depart_Time","Arrival_Time","Ticket_Cost")
+
+
+scala> myDF_flight_new.printSchema
+root
+ |-- Airport_ID: integer (nullable = true)
+ |-- Departure: string (nullable = true)
+ |-- Arrival: string (nullable = true)
+ |-- Flight_ID: integer (nullable = true)
+ |-- Depart_Time: string (nullable = true)
+ |-- Arrival_Time: string (nullable = true)
+ |-- Ticket_Cost: double (nullable = true)
+
+scala> myDF_flight_new.show(false)
++----------+-----------+---------------+---------+----------------+----------------+-----------+
+|Airport_ID|Departure  |Arrival        |Flight_ID|Depart_Time     |Arrival_Time    |Ticket_Cost|
++----------+-----------+---------------+---------+----------------+----------------+-----------+
+|99        |Los Angeles|Washington D.C.|2308     |2005/04/12 09:30|2005/04/12 21:40|235.98     |
+|13        |Los Angeles|Chicago        |1749     |2005/04/12 08:45|2005/04/12 20:45|220.98     |
+|346       |Los Angeles|Dallas         |1251     |2005/04/12 11:50|2005/04/12 19:05|225.43     |
+|387       |Los Angeles|Boston         |2606     |2005/04/12 07:03|2005/04/12 17:03|261.56     |
+|7         |Los Angeles|Sydney         |7487     |2005/04/12 22:30|2005/04/14 6:10 |1278.56    |
+|2         |Los Angeles|Tokyo          |5478     |2005/04/12 12:30|2005/04/13 15:55|780.99     |
+|33        |Los Angeles|Honolulu       |2551     |2005/04/12 09:15|2005/04/12 11:15|375.23     |
+|34        |Los Angeles|Honolulu       |2551     |2005/04/12 12:45|2005/04/12 15:18|425.98     |
+|76        |Chicago    |Los Angeles    |1749     |2005/04/12 08:32|2005/04/12 10:03|220.98     |
+|68        |Chicago    |New York       |802      |2005/04/12 09:00|2005/04/12 12:02|202.45     |
+|7789      |Madison    |Detroit        |319      |2005/04/12 06:15|2005/04/12 08:19|120.33     |
+|701       |Detroit    |New York       |470      |2005/04/12 08:55|2005/04/12 10:26|180.56     |
+|702       |Madison    |New York       |789      |2005/04/12 07:05|2005/04/12 10:12|202.34     |
+|4884      |Madison    |Chicago        |84       |2005/04/12 22:12|2005/04/12 23:02|112.45     |
+|2223      |Madison    |Pittsburgh     |517      |2005/04/12 08:02|2005/04/12 10:01|189.98     |
+|5694      |Madison    |Minneapolis    |247      |2005/04/12 08:32|2005/04/12 09:33|120.11     |
+|304       |Minneapolis|New York       |991      |2005/04/12 10:00|2005/04/12 1:39 |101.56     |
+|149       |Pittsburgh |New York       |303      |2005/04/12 09:42|2005/04/12 12:09|116.5      |
++----------+-----------+---------------+---------+----------------+----------------+-----------+
+
+EMPLOYEE DATA
+=====================
+
+/user/edureka_918210/Deb_DataSets/employee.csv
+
+var myDF_emp=spark.read.format("csv").option("delimiter",",").option("header","false").option("inferSchema","true").load("/user/edureka_918210/Deb_DataSets/employee.csv")
+
+scala> myDF_emp.printSchema
+root
+ |-- _c0: integer (nullable = true)
+ |-- _c1: string (nullable = true)
+ |-- _c2: double (nullable = true)
+scala> 
+
+scala> myDF_emp.show(false)
++---------+---------------+--------+
+|_c0      |_c1            |_c2     |
++---------+---------------+--------+
+|242518965|James Smith    |120433.0|
+|141582651|Mary Johnson   |178345.0|
+|11564812 |John Williams  |153972.0|
+|567354612|Lisa Walker    |256481.0|
+|552455318|Larry West     |101745.0|
+|550156548|Karen Scott    |205187.0|
+|390487451|Lawrence Sperry|212156.0|
+|274878974|Michael Miller |99890.0 |
+|254099823|Patricia Jones |24450.0 |
+|356187925|Robert Brown   |44740.0 |
+|355548984|Angela Martinez|212156.0|
+|310454876|Joseph Thompson|212156.0|
+|489456522|Linda Davis    |127984.0|
+|489221823|Richard Jackson|23980.0 |
+|548977562|William Ward   |84476.0 |
+|310454877|Chad Stewart   |33546.0 |
+|142519864|Betty Adams    |227489.0|
+|269734834|George Wright  |289950.0|
+|287321212|Michael Miller |48090.0 |
+|552455348|Dorthy Lewis   |92013.0 |
++---------+---------------+--------+
+
+var myDF_emp=spark.read.format("csv").option("delimiter",",").option("header","false").option("inferSchema","true").load("/user/edureka_918210/Deb_DataSets/employee.csv").toDF("EMPID","EMP_NAME","SALARY")
+
+myDF_emp.printSchema
+root
+ |-- EMPID: integer (nullable = true)
+ |-- EMP_NAME: string (nullable = true)
+ |-- SALARY: double (nullable = true)
+
+
+scala> myDF_emp.show(false)
++---------+---------------+--------+
+|EMPID    |EMP_NAME       |SALARY  |
++---------+---------------+--------+
+|242518965|James Smith    |120433.0|
+|141582651|Mary Johnson   |178345.0|
+|11564812 |John Williams  |153972.0|
+|567354612|Lisa Walker    |256481.0|
+|552455318|Larry West     |101745.0|
+|550156548|Karen Scott    |205187.0|
+|390487451|Lawrence Sperry|212156.0|
+|274878974|Michael Miller |99890.0 |
+|254099823|Patricia Jones |24450.0 |
+|356187925|Robert Brown   |44740.0 |
+|355548984|Angela Martinez|212156.0|
+|310454876|Joseph Thompson|212156.0|
+|489456522|Linda Davis    |127984.0|
+|489221823|Richard Jackson|23980.0 |
+|548977562|William Ward   |84476.0 |
+|310454877|Chad Stewart   |33546.0 |
+|142519864|Betty Adams    |227489.0|
+|269734834|George Wright  |289950.0|
+|287321212|Michael Miller |48090.0 |
+|552455348|Dorthy Lewis   |92013.0 |
++---------+---------------+--------+
+only showing top 20 rows
+
+
+myDF_emp.createOrReplaceTempView("Employee")
+
+spark.sql("Select * from Employee").show
+
+spark.sql("Select EMPID,EMP_NAME,SALARY from Employee order by SALARY desc").show
+
+
+===============================================================================================================================================================================
+
+
+TEMPERATURE.JSON
+=================
+
+/user/edureka_918210/Deb_DataSets/temperatures.json
+
+var myDF_temp=spark.read.format("json").option("delimiter",",").option("header","false").option("inferSchema","true").load("/user/edureka_918210/Deb_DataSets/temperatures.json").toDF("AVG_HIGH","AVG_LOW","CITY")
+
+
+myDF_temp.printSchema
+
+myDF_temp.show(false)
+
+
+CREATING TEMP VIEW :
+===================
+
+myDF_temp.createOrReplaceTempView("temperatures")
+
+USING SPARK.SQL AND DATAFRAMES :
+==================================
+
+spark.sql("Select * from temperatures").show
+spark.sql("Select AVG_HIGH,CITY from temperatures").show    ---  Using Spark SQL Temp View	
+
+myDF_temp.select(col("AVG_HIGH"),col("CITY")).show    ---  Using Data Frame Operations
+
+myDF_temp.select(expr("AVG_HIGH * 1.25") as "Revised AVG_HIGH",col("CITY")).show		 ---  Using Data Frame Operations
+myDF_temp.orderBy(col("AVG_HIGH"),col("CITY")).show      ---  Using Data Frame Operations
+myDF_temp.orderBy(col("AVG_HIGH").desc,col("CITY")).show	---  Using Data Frame Operations   OR,     myDF_temp.sort(col("AVG_HIGH")).show		|| Both orderBy and sort operations can be used.
+								    
+
+===============================================================================================================================================================================
+
+
+/user/edureka_918210/Deb_DataSets/taxi_trip.csv
+
+var myDF_taxi_trip=spark.read.format("csv").option("delimiter",",").option("header","false").option("inferSchema","true").load("/user/edureka_918210/Deb_DataSets/taxi_trip.csv").toDF("Trip_ID","Taxi_ID","Trip_Start","Trip_End","Trip_Sec","Trip_Miles","Pickup_Tract","Dropoff_Tract","Pickup_Area","Dropoff","Fare","Tips","Tolls","Extras","Trip_Total","Payment_Type","Company","Latitude","Longitude","Location","Dropoff_Latitude","Dropoff_Longitude","Dropoff_Location","Community_Areas")
+
+
+myDF_taxi_trip.printSchema
+
+
+scala> myDF_taxi_trip.printSchema
+root
+ |-- _c0: string (nullable = true)
+ |-- _c1: string (nullable = true)
+ |-- _c2: string (nullable = true)
+ |-- _c3: string (nullable = true)
+ |-- _c4: string (nullable = true)
+ |-- _c5: string (nullable = true)
+ |-- _c6: string (nullable = true)
+ |-- _c7: string (nullable = true)
+ |-- _c8: string (nullable = true)
+ |-- _c9: string (nullable = true)
+ |-- _c10: string (nullable = true)
+ |-- _c11: string (nullable = true)
+ |-- _c12: string (nullable = true)
+ |-- _c13: string (nullable = true)
+ |-- _c14: string (nullable = true)
+ |-- _c15: string (nullable = true)
+ |-- _c16: string (nullable = true)
+ |-- _c17: string (nullable = true)
+ |-- _c18: string (nullable = true)
+ |-- _c19: string (nullable = true)
+ |-- _c20: string (nullable = true)
+ |-- _c21: string (nullable = true)
+ |-- _c22: string (nullable = true)
+ |-- _c23: string (nullable = true)
+
+
+myDF_taxi_trip.show(false)
+
+===============================================================================================================================================================================
+
+
+"Trip_ID","Taxi_ID","Trip_Start","Trip_End","Trip_Sec","Trip_Miles","Pickup_Tract","Dropoff_Tract","Pickup_Area","Dropoff","Fare","Tips","Tolls","Extras","Trip_Total","Payment_Type","Company","Latitude","Longitude","Location","Dropoff_Latitude","Dropoff_Longitude","Dropoff_Location","Community_Areas"
+
+
+var myDF_taxi_trip=spark.read.format("csv").option("delimiter",",").option("header","false").option("inferSchema","true").load("/user/edureka_
+918210/Deb_DataSets/taxi_trip.csv").toDF("Trip_ID","Taxi_ID","Trip_Start","Trip_End","Trip_Sec","Trip_Miles","Pickup_Tract","Dropoff_Tract","Pickup_A
+rea","Dropoff","Fare","Tips","Tolls","Extras","Trip_Total","Payment_Type","Company","Latitude","Longitude","Location","Dropoff_Latitude","Dropoff_Longitude","Dropoff_Location","Community_Areas")
+
+
+myDF_taxi_trip.select(col("Trip_ID"),col("Taxi_ID"),col("Trip_Start"),col("Fare")).show(false)
+
+===============================================================================================================================================================================
+
+COVID 19 SPARK OPERATIONS
+=========================
+
+/user/edureka_918210/Deb_DataSets/COVID19_DataSet
+=================================================
+
+[edureka_918210@ip-20-0-41-164 ~]$ hadoop fs -ls /user/edureka_918210/Deb_DataSets/COVID19_DataSet
+Found 6 items
+-rw-r--r--   3 edureka_918210 hadoop    1109964 2020-07-28 03:39 /user/edureka_918210/Deb_DataSets/COVID19_DataSet/countries-aggregated.csv
+-rw-r--r--   3 edureka_918210 hadoop      11006 2020-07-28 03:39 /user/edureka_918210/Deb_DataSets/COVID19_DataSet/key-countries-pivoted.csv
+-rw-r--r--   3 edureka_918210 hadoop     403028 2020-07-28 03:40 /user/edureka_918210/Deb_DataSets/COVID19_DataSet/reference.csv
+-rw-r--r--   3 edureka_918210 hadoop   70182395 2020-07-28 03:48 /user/edureka_918210/Deb_DataSets/COVID19_DataSet/us_confirmed.csv
+-rw-r--r--   3 edureka_918210 hadoop   73477670 2020-07-28 04:12 /user/edureka_918210/Deb_DataSets/COVID19_DataSet/us_deaths.csv
+-rw-r--r--   3 edureka_918210 hadoop       9566 2020-07-28 03:43 /user/edureka_918210/Deb_DataSets/COVID19_DataSet/worldwide-aggregated.csv
+
+
+
+var myDF_COVID1=spark.read.format("csv").option("delimiter",",").option("header","false").option("inferSchema","true").load("/user/edureka_918210/Deb_DataSets/COVID19_DataSet/countries-aggregated.csv").toDF("DATE","COUNTRY","CONFIRMED","RECOVERED","DEATHS")
+
+var myDF_COVID2=spark.read.format("csv").option("delimiter",",").option("header","false").option("inferSchema","true").load("/user/edureka_918210/Deb_DataSets/COVID19_DataSet/key-countries-pivoted.csv").toDF("DATE","CHINA","US","UNITED_KINGDOM","ITALY","FRANCE","GERMANY","SPAIN","IRAN")
+
+
+var myDF_COVID3=spark.read.format("csv").option("delimiter",",").option("header","false").option("inferSchema","true").load("/user/edureka_918210/Deb_DataSets/COVID19_DataSet/reference.csv").toDF("UID","iso2","iso3","code3","FIPS","Admin2","Province_State","Country_Region","Lat","Long_","Combined_Key","Population")
+
+
+var myDF_COVID4=spark.read.format("csv").option("delimiter",",").option("header","false").option("inferSchema","true").load("/user/edureka_918210/Deb_DataSets/COVID19_DataSet/us_confirmed.csv").toDF("UID","iso2","iso3","code3","FIPS","Admin2","Lat","Combined_Key","Date","Case","Long","Country/Region","Province/State")
+
+
+var myDF_COVID5=spark.read.format("csv").option("delimiter",",").option("header","false").option("inferSchema","true").load("/user/edureka_918210/Deb_DataSets/COVID19_DataSet/us_deaths.csv").toDF("UID","iso2","iso3","code3","FIPS","Admin2","Lat","Combined_Key","Population","Date","Case","Long","Country/Region","Province/State")
+
+
+var myDF_COVID6=spark.read.format("csv").option("delimiter",",").option("header","false").option("inferSchema","true").load("/user/edureka_918210/Deb_DataSets/COVID19_DataSet/worldwide-aggregated.csv").toDF("Date","Confirmed","Recovered","Deaths","Increase_rate")
+
+
+
+myDF_COVID1.show(false)
+myDF_COVID2.show(false)
+myDF_COVID3.show(false)
+myDF_COVID4.show(false)
+myDF_COVID5.show(false)
+myDF_COVID6.show(false)
+
+
+
+
+scala> myDF_COVID1.show(false)
++----------+-------------------+---------+---------+------+
+|DATE      |COUNTRY            |CONFIRMED|RECOVERED|DEATHS|
++----------+-------------------+---------+---------+------+
+|Date      |Country            |Confirmed|Recovered|Deaths|
+|2020-02-06|30802    |1487     |634   |11.427847918098614|
+|2020-01-22|Afghanistan        |0        |0        |0     |
+|2020-01-22|Albania            |0        |0        |0     |
+|2020-01-22|Algeria            |0        |0        |0     |
+|2020-01-22|Andorra            |0        |0        |0     |
+|2020-01-22|Angola             |0        |0        |0     |
+|2020-01-22|Antigua and Barbuda|0        |0        |0     |
+|2020-01-22|Argentina          |0        |0        |0     |
+|2020-01-22|Armenia            |0        |0        |0     |
+|2020-01-22|Australia          |0        |0        |0     |
+|2020-01-22|Austria            |0        |0        |0     |
+|2020-01-22|Azerbaijan         |0        |0        |0     |
+|2020-01-22|Bahamas            |0        |0        |0     |
+|2020-01-22|Bahrain            |0        |0        |0     |
+|2020-01-22|Bangladesh         |0        |0        |0     |
+|2020-01-22|Barbados           |0        |0        |0     |
+|2020-01-22|Belarus            |0        |0        |0     |
+|2020-01-22|Belgium            |0        |0        |0     |
+|2020-01-22|Belize             |0        |0        |0     |
+|2020-01-22|Benin              |0        |0        |0     |
++----------+-------------------+---------+---------+------+
+only showing top 20 rows
+
+
+scala> myDF_COVID2.show(false)
++----------+-----+---+--------------+-----+------+-------+-----+----+
+|DATE      |CHINA|US |UNITED_KINGDOM|ITALY|FRANCE|GERMANY|SPAIN|IRAN|
++----------+-----+---+--------------+-----+------+-------+-----+----+
+|Date      |China|US |United_Kingdom|Italy|France|Germany|Spain|Iran|
+|2020-01-22|548  |1  |0             |0    |0     |0      |0    |0   |
+|2020-01-23|643  |1  |0             |0    |0     |0      |0    |0   |
+|2020-01-24|920  |2  |0             |0    |2     |0      |0    |0   |
+|2020-01-25|1406 |2  |0             |0    |3     |0      |0    |0   |
+|2020-01-26|2075 |5  |0             |0    |3     |0      |0    |0   |
+|2020-01-27|2877 |5  |0             |0    |3     |1      |0    |0   |
+|2020-01-28|5509 |5  |0             |0    |4     |4      |0    |0   |
+|2020-01-29|6087 |5  |0             |0    |5     |4      |0    |0   |
+|2020-01-30|8141 |5  |0             |0    |5     |4      |0    |0   |
+|2020-01-31|9802 |7  |2             |2    |5     |5      |0    |0   |
+|2020-02-01|11891|8  |2             |2    |6     |8      |1    |0   |
+|2020-02-02|16630|8  |2             |2    |6     |10     |1    |0   |
+|2020-02-03|19716|11 |8             |2    |6     |12     |1    |0   |
+|2020-02-04|23707|11 |8             |2    |6     |12     |1    |0   |
+|2020-02-05|27440|11 |9             |2    |6     |12     |1    |0   |
+|2020-02-06|30587|11 |9             |2    |6     |12     |1    |0   |
+|2020-02-07|34110|11 |9             |3    |6     |13     |1    |0   |
+|2020-02-08|36814|11 |13            |3    |11    |13     |1    |0   |
+|2020-02-09|39829|11 |14            |3    |11    |14     |2    |0   |
++----------+-----+---+--------------+-----+------+-------+-----+----+
+only showing top 20 rows
+
+scala> myDF_COVID3.show(false)
++---+----+----+-----+----+------+--------------+-------------------+---------+----------+-------------------+----------+
+|UID|iso2|iso3|code3|FIPS|Admin2|Province_State|Country_Region     |Lat      |Long_     |Combined_Key       |Population|
++---+----+----+-----+----+------+--------------+-------------------+---------+----------+-------------------+----------+
+|UID|iso2|iso3|code3|FIPS|Admin2|Province_State|Country_Region     |Lat      |Long_     |Combined_Key       |Population|
+|4  |AF  |AFG |4    |null|null  |null          |Afghanistan        |33.93911 |67.709953 |Afghanistan        |38928341  |
+|8  |AL  |ALB |8    |null|null  |null          |Albania            |41.1533  |20.1683   |Albania            |2877800   |
+|12 |DZ  |DZA |12   |null|null  |null          |Algeria            |28.0339  |1.6596    |Algeria            |43851043  |
+|20 |AD  |AND |20   |null|null  |null          |Andorra            |42.5063  |1.5218    |Andorra            |77265     |
+|24 |AO  |AGO |24   |null|null  |null          |Angola             |-11.2027 |17.8739   |Angola             |32866268  |
+|28 |AG  |ATG |28   |null|null  |null          |Antigua and Barbuda|17.0608  |-61.7964  |Antigua and Barbuda|97928     |
+|32 |AR  |ARG |32   |null|null  |null          |Argentina          |-38.4161 |-63.6167  |Argentina          |45195777  |
+|51 |AM  |ARM |51   |null|null  |null          |Armenia            |40.0691  |45.0382   |Armenia            |2963234   |
+|40 |AT  |AUT |40   |null|null  |null          |Austria            |47.5162  |14.5501   |Austria            |9006400   |
+|31 |AZ  |AZE |31   |null|null  |null          |Azerbaijan         |40.1431  |47.5769   |Azerbaijan         |10139175  |
+|44 |BS  |BHS |44   |null|null  |null          |Bahamas            |25.025885|-78.035889|Bahamas            |393248    |
+|48 |BH  |BHR |48   |null|null  |null          |Bahrain            |26.0275  |50.55     |Bahrain            |1701583   |
+|50 |BD  |BGD |50   |null|null  |null          |Bangladesh         |23.685   |90.3563   |Bangladesh         |164689383 |
+|52 |BB  |BRB |52   |null|null  |null          |Barbados           |13.1939  |-59.5432  |Barbados           |287371    |
+|112|BY  |BLR |112  |null|null  |null          |Belarus            |53.7098  |27.9534   |Belarus            |9449321   |
+|56 |BE  |BEL |56   |null|null  |null          |Belgium            |50.8333  |4.469936  |Belgium            |11589616  |
+|84 |BZ  |BLZ |84   |null|null  |null          |Belize             |17.1899  |-88.4976  |Belize             |397621    |
+|204|BJ  |BEN |204  |null|null  |null          |Benin              |9.3077   |2.3158    |Benin              |12123198  |
+|64 |BT  |BTN |64   |null|null  |null          |Bhutan             |27.5142  |90.4336   |Bhutan             |771612    |
++---+----+----+-----+----+------+--------------+-------------------+---------+----------+-------------------+----------+
+only showing top 20 rows
+
+
+scala> myDF_COVID4.show(false)
+|32 |AR  |ARG |32   |null|null  |null          |Argentina          |-38.4161 |-63.6167  |Argentina          |45195777  |
++---+----+----+-----+----+------+-------------------+------------------+----------+----+--------+--------------+--------------+
+|UID|iso2|iso3|code3|FIPS|Admin2|Lat                |Combined_Key      |Date      |Case|Long    |Country/Region|Province/State|
++---+----+----+-----+----+------+-------------------+------------------+----------+----+--------+--------------+--------------+
+|UID|iso2|iso3|code3|FIPS|Admin2|Lat                |Combined_Key      |Date      |Case|Long    |Country/Region|Province/State|
+|16 |AS  |ASM |16   |60.0|null  |-14.270999999999999|American Samoa, US|2020-01-22|0   |-170.132|US            |American Samoa|
+|16 |AS  |ASM |16   |60.0|null  |-14.270999999999999|American Samoa, US|2020-01-23|0   |-170.132|US            |American Samoa|
+|16 |AS  |ASM |16   |60.0|null  |-14.270999999999999|American Samoa, US|2020-01-24|0   |-170.132|US            |American Samoa|
+|16 |AS  |ASM |16   |60.0|null  |-14.270999999999999|American Samoa, US|2020-01-25|0   |-170.132|US            |American Samoa|
+|16 |AS  |ASM |16   |60.0|null  |-14.270999999999999|American Samoa, US|2020-01-26|0   |-170.132|US            |American Samoa|
+|16 |AS  |ASM |16   |60.0|null  |-14.270999999999999|American Samoa, US|2020-01-27|0   |-170.132|US            |American Samoa|
+|16 |AS  |ASM |16   |60.0|null  |-14.270999999999999|American Samoa, US|2020-01-28|0   |-170.132|US            |American Samoa|
+|16 |AS  |ASM |16   |60.0|null  |-14.270999999999999|American Samoa, US|2020-01-29|0   |-170.132|US            |American Samoa|
+|16 |AS  |ASM |16   |60.0|null  |-14.270999999999999|American Samoa, US|2020-01-30|0   |-170.132|US            |American Samoa|
+|16 |AS  |ASM |16   |60.0|null  |-14.270999999999999|American Samoa, US|2020-01-31|0   |-170.132|US            |American Samoa|
+|16 |AS  |ASM |16   |60.0|null  |-14.270999999999999|American Samoa, US|2020-02-01|0   |-170.132|US            |American Samoa|
+|16 |AS  |ASM |16   |60.0|null  |-14.270999999999999|American Samoa, US|2020-02-02|0   |-170.132|US            |American Samoa|
+|16 |AS  |ASM |16   |60.0|null  |-14.270999999999999|American Samoa, US|2020-02-03|0   |-170.132|US            |American Samoa|
+|16 |AS  |ASM |16   |60.0|null  |-14.270999999999999|American Samoa, US|2020-02-04|0   |-170.132|US            |American Samoa|
+|16 |AS  |ASM |16   |60.0|null  |-14.270999999999999|American Samoa, US|2020-02-05|0   |-170.132|US            |American Samoa|
+|16 |AS  |ASM |16   |60.0|null  |-14.270999999999999|American Samoa, US|2020-02-06|0   |-170.132|US            |American Samoa|
+|16 |AS  |ASM |16   |60.0|null  |-14.270999999999999|American Samoa, US|2020-02-07|0   |-170.132|US            |American Samoa|
+|16 |AS  |ASM |16   |60.0|null  |-14.270999999999999|American Samoa, US|2020-02-08|0   |-170.132|US            |American Samoa|
+|16 |AS  |ASM |16   |60.0|null  |-14.270999999999999|American Samoa, US|2020-02-09|0   |-170.132|US            |American Samoa|
++---+----+----+-----+----+------+-------------------+------------------+----------+----+--------+--------------+--------------+
+only showing top 20 rows
+
+
+
+
+scala> myDF_COVID5.show(false)
++---+----+----+-----+----+------+-------------------+------------------+----------+----------+----+--------+--------------+--------------+
+|UID|iso2|iso3|code3|FIPS|Admin2|Lat                |Combined_Key      |Population|Date      |Case|Long    |Country/Region|Province/State|
++---+----+----+-----+----+------+-------------------+------------------+----------+----------+----+--------+--------------+--------------+
+|UID|iso2|iso3|code3|FIPS|Admin2|Lat                |Combined_Key      |Population|Date      |Case|Long    |Country/Region|Province/State|
+|16 |AS  |ASM |16   |60.0|null  |-14.270999999999999|American Samoa, US|55641     |2020-01-22|0   |-170.132|US            |American Samoa|
+|16 |AS  |ASM |16   |60.0|null  |-14.270999999999999|American Samoa, US|55641     |2020-01-23|0   |-170.132|US            |American Samoa|
+|16 |AS  |ASM |16   |60.0|null  |-14.270999999999999|American Samoa, US|55641     |2020-01-24|0   |-170.132|US            |American Samoa|
+|16 |AS  |ASM |16   |60.0|null  |-14.270999999999999|American Samoa, US|55641     |2020-01-25|0   |-170.132|US            |American Samoa|
+|16 |AS  |ASM |16   |60.0|null  |-14.270999999999999|American Samoa, US|55641     |2020-01-26|0   |-170.132|US            |American Samoa|
+|16 |AS  |ASM |16   |60.0|null  |-14.270999999999999|American Samoa, US|55641     |2020-01-27|0   |-170.132|US            |American Samoa|
+|16 |AS  |ASM |16   |60.0|null  |-14.270999999999999|American Samoa, US|55641     |2020-01-28|0   |-170.132|US            |American Samoa|
+|16 |AS  |ASM |16   |60.0|null  |-14.270999999999999|American Samoa, US|55641     |2020-01-29|0   |-170.132|US            |American Samoa|
+|16 |AS  |ASM |16   |60.0|null  |-14.270999999999999|American Samoa, US|55641     |2020-01-30|0   |-170.132|US            |American Samoa|
+|16 |AS  |ASM |16   |60.0|null  |-14.270999999999999|American Samoa, US|55641     |2020-01-31|0   |-170.132|US            |American Samoa|
+|16 |AS  |ASM |16   |60.0|null  |-14.270999999999999|American Samoa, US|55641     |2020-02-01|0   |-170.132|US            |American Samoa|
+|16 |AS  |ASM |16   |60.0|null  |-14.270999999999999|American Samoa, US|55641     |2020-02-02|0   |-170.132|US            |American Samoa|
+|16 |AS  |ASM |16   |60.0|null  |-14.270999999999999|American Samoa, US|55641     |2020-02-03|0   |-170.132|US            |American Samoa|
+|16 |AS  |ASM |16   |60.0|null  |-14.270999999999999|American Samoa, US|55641     |2020-02-04|0   |-170.132|US            |American Samoa|
+|16 |AS  |ASM |16   |60.0|null  |-14.270999999999999|American Samoa, US|55641     |2020-02-05|0   |-170.132|US            |American Samoa|
+|16 |AS  |ASM |16   |60.0|null  |-14.270999999999999|American Samoa, US|55641     |2020-02-06|0   |-170.132|US            |American Samoa|
+|16 |AS  |ASM |16   |60.0|null  |-14.270999999999999|American Samoa, US|55641     |2020-02-07|0   |-170.132|US            |American Samoa|
+|16 |AS  |ASM |16   |60.0|null  |-14.270999999999999|American Samoa, US|55641     |2020-02-08|0   |-170.132|US            |American Samoa|
+|16 |AS  |ASM |16   |60.0|null  |-14.270999999999999|American Samoa, US|55641     |2020-02-09|0   |-170.132|US            |American Samoa|
++---+----+----+-----+----+------+-------------------+------------------+----------+----------+----+--------+--------------+--------------+
+only showing top 20 rows
+
+
+scala> myDF_COVID6.show(false)
+
+
++----------+---------+---------+------+------------------+
+|Date      |Confirmed|Recovered|Deaths|Increase_rate     |
++----------+---------+---------+------+------------------+
+|Date      |Confirmed|Recovered|Deaths|Increase rate     |
+|2020-01-22|555      |28       |17    |null              |
+|2020-01-23|654      |30       |18    |17.83783783783784 |
+|2020-01-24|941      |36       |26    |43.883792048929664|
+|2020-01-25|1434     |39       |42    |52.39107332624867 |
+|2020-01-26|2118     |52       |56    |47.69874476987448 |
+|2020-01-27|2927     |61       |82    |38.196411709159584|
+|2020-01-28|5578     |107      |131   |90.57055005124701 |
+|2020-01-29|6166     |126      |133   |10.541412692721405|
+|2020-01-30|8234     |143      |171   |33.53876094712942 |
+|2020-01-31|9927     |222      |213   |20.5610881709983  |
+|2020-02-01|12038    |284      |259   |21.2652362244384  |
+|2020-02-02|16787    |472      |362   |39.45007476324971 |
+|2020-02-03|19887    |623      |426   |18.466670637993683|
+|2020-02-04|23898    |852      |492   |20.16895459345301 |
+|2020-02-05|27643    |1124     |564   |15.670767428236672|
+|2020-02-06|30802    |1487     |634   |11.427847918098614|
+|2020-02-07|34395    |2011     |719   |11.664826959288357|
+|2020-02-08|37129    |2616     |806   |7.948829771769153 |
+|2020-02-09|40159    |3244     |906   |8.160736890301381 |
++----------+---------+---------+------+------------------+
+only showing top 20 rows
+
+===============================================================================================================================================================================
+
+myDF_COVID1.show(false)
+myDF_COVID2.show(false)
+myDF_COVID3.show(false)
+myDF_COVID4.show(false)
+myDF_COVID5.show(false)
+myDF_COVID6.show(false)
+
+myDF_COVID1.select("DATE").intersect(myDF_COVID2.select("DATE")).show
+
+myDF_COVID1.join(myDF_COVID2,myDF_COVID1.col("DATE")===myDF_COVID2.col("DATE")).show(false)
+
++----------+-------------------+---------+---------+------+----------+-----+---+--------------+-----+------+-------+-----+----+
+|DATE      |COUNTRY            |CONFIRMED|RECOVERED|DEATHS|DATE      |CHINA|US |UNITED_KINGDOM|ITALY|FRANCE|GERMANY|SPAIN|IRAN|
++----------+-------------------+---------+---------+------+----------+-----+---+--------------+-----+------+-------+-----+----+
+|Date      |Country            |Confirmed|Recovered|Deaths|Date      |China|US |United_Kingdom|Italy|France|Germany|Spain|Iran|
+|2020-01-22|Afghanistan        |0        |0        |0     |2020-01-22|548  |1  |0             |0    |0     |0      |0    |0   |
+|2020-01-22|Albania            |0        |0        |0     |2020-01-22|548  |1  |0             |0    |0     |0      |0    |0   |
+|2020-01-22|Algeria            |0        |0        |0     |2020-01-22|548  |1  |0             |0    |0     |0      |0    |0   |
+|2020-01-22|Andorra            |0        |0        |0     |2020-01-22|548  |1  |0             |0    |0     |0      |0    |0   |
+|2020-01-22|Angola             |0        |0        |0     |2020-01-22|548  |1  |0             |0    |0     |0      |0    |0   |
+|2020-01-22|Antigua and Barbuda|0        |0        |0     |2020-01-22|548  |1  |0             |0    |0     |0      |0    |0   |
+|2020-01-22|Argentina          |0        |0        |0     |2020-01-22|548  |1  |0             |0    |0     |0      |0    |0   |
+|2020-01-22|Armenia            |0        |0        |0     |2020-01-22|548  |1  |0             |0    |0     |0      |0    |0   |
+|2020-01-22|Australia          |0        |0        |0     |2020-01-22|548  |1  |0             |0    |0     |0      |0    |0   |
+|2020-01-22|Austria            |0        |0        |0     |2020-01-22|548  |1  |0             |0    |0     |0      |0    |0   |
+|2020-01-22|Azerbaijan         |0        |0        |0     |2020-01-22|548  |1  |0             |0    |0     |0      |0    |0   |
+|2020-01-22|Bahamas            |0        |0        |0     |2020-01-22|548  |1  |0             |0    |0     |0      |0    |0   |
+|2020-01-22|Bahrain            |0        |0        |0     |2020-01-22|548  |1  |0             |0    |0     |0      |0    |0   |
+|2020-01-22|Bangladesh         |0        |0        |0     |2020-01-22|548  |1  |0             |0    |0     |0      |0    |0   |
+|2020-01-22|Barbados           |0        |0        |0     |2020-01-22|548  |1  |0             |0    |0     |0      |0    |0   |
+|2020-01-22|Belarus            |0        |0        |0     |2020-01-22|548  |1  |0             |0    |0     |0      |0    |0   |
+|2020-01-22|Belgium            |0        |0        |0     |2020-01-22|548  |1  |0             |0    |0     |0      |0    |0   |
+|2020-01-22|Belize             |0        |0        |0     |2020-01-22|548  |1  |0             |0    |0     |0      |0    |0   |
+|2020-01-22|Benin              |0        |0        |0     |2020-01-22|548  |1  |0             |0    |0     |0      |0    |0   |
++----------+-------------------+---------+---------+------+----------+-----+---+--------------+-----+------+-------+-----+----+
+only showing top 20 rows
+
+
+
+
+
+

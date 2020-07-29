@@ -1,0 +1,311 @@
+----------------------------------------------------------------
+Hive Commands
+----------------------------------------------------------------
+
+hive -S -e "show databases" > ~/show_databases
+cat show_databases
+
+----------------------------------------------------------------
+CREATING DATABASE:
+----------------------------------------------------------------
+
+CREATE DATABASE database_name;
+Use database_name;
+
+----------------------------------------------------------------
+CREATING TABLE:
+----------------------------------------------------------------
+
+CREATE TABLE txnrecords(
+txnno INT, txndate STRING,
+custno INT, 
+amount DOUBLE, 
+category STRING, 
+product STRING, 
+city STRING, 
+state String, 
+Spendby String )
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY ',' 
+STORED AS TEXTFILE; 
+
+----------------------------------------------------------------
+CREATING AN EXTERNAL TABLE:
+----------------------------------------------------------------
+
+CREATE EXTERNAL TABLE txn_ext(
+txnno INT, 
+txndate STRING, 
+custno INT, 
+amount DOUBLE,
+category STRING, 
+product STRING, 
+city STRING, 
+state String, 
+Spendby String ) 
+ROW FORMAT DELIMITED FIELDS TERMINATED BY ','
+LOCATION '/bigdatapgp/common_folder/hive_datasets/tnxn.csv';
+
+----------------------------------------------------------------
+RETRIEVING DATA FROM TABLE:
+----------------------------------------------------------------
+SELECT * FROM txn_ext LIMIT 10;
+
+
+DATASET: hdfs:///bigdatapgp/common_folder/hive_datasets/tnxn.csv
+
+----------------------------------------------------------------
+INSERTING DATA INTO TABLE:
+----------------------------------------------------------------
+LOAD DATA LOCAL INPATH 'tnxn.csv' OVERWRITE INTO TABLE  txnrecords;
+
+----------------------------------------------------------------
+DESCRIBING METADATA OR SCHEMA OF THE TABLE:
+----------------------------------------------------------------
+DESCRIBE txnrecords;
+
+
+----------------------------------------------------------------
+INSERTING OUTPUT INTO ANOTHER TABLE:
+----------------------------------------------------------------
+INSERT OVERWRITE TABLE results SELECT * FROM txnrecords;
+
+
+----------------------------------------------------------------
+INSERTING OUTPUT INTO LOCAL FILE:
+----------------------------------------------------------------
+INSERT OVERWRITE LOCAL DIRECTORY 'results'
+SELECT * FROM txnrecords;
+
+----------------------------------------------------------------
+INSERTING OUTPUT INTO HDFS:
+----------------------------------------------------------------
+INSERT OVERWRITE DIRECTORY 'results' SELECT * FROM txnrecords;
+
+
+
+----------------------------------------------------------------
+RUNNING HIVE SCRIPT:
+----------------------------------------------------------------
+hive_script.hql
+
+--This is how you comment in Hive Script.
+use pgp;
+--Using pgp database
+select * from txnrecords limit 10 ;
+--Printing 10 records from txnrecords table
+
+----------------------------------------------------------------
+DATA DISTRIBUTED ACROSS PARTITIONS AND BUCKETS IN HIVE:
+
+CREATING EXTERNAL TABLE:
+----------------------------------------------------------------
+
+CREATE EXTERNAL TABLE amazon_review(
+marketplace string, 
+customer_id int, 
+review_id string, 
+product_id string, 
+product_parent string, 
+product_title string,
+ product_category string, 
+star_rating int, 
+helpful_votes int, 
+total_votes int,
+vine string, 
+verified_purchase string,
+review_headline string, 
+review_body string,
+review_date date)
+ROW FORMAT DELIMITED 
+FIELDS TERMINATED BY '\t'
+LOCATION '/bigdatapgp/common_folder/hive_datasets/amazon'
+tblproperties('skip.header.line.count'='1' ) ;
+
+----------------------------------------------------------------
+QUERYING UNPARTITIONED DATA:
+----------------------------------------------------------------
+select * from amazon_review where year(review_date)=1999;
+
+----------------------------------------------------------------
+STATIC PARTITION - CREATE TABLE:
+----------------------------------------------------------------
+CREATE TABLE amazon_review_static_partition(
+marketplace string, 
+customer_id int,
+review_id string, 
+product_id string,
+product_parent string,
+ product_title string,
+product_category string, 
+star_rating int,
+helpful_votes int,
+ total_votes int,
+vine string, 
+verified_purchase string,
+review_headline string,
+ review_body string)
+PARTITIONED BY (year string)
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY '\t'
+tblproperties('skip.header.line.count'='1' ) ;
+
+----------------------------------------------------------------
+STATIC PARTITION - INSERT DATA:
+----------------------------------------------------------------
+INSERT OVERWRITE TABLE amazon_review_static_partition PARTITION(year='2019' )
+SELECT marketplace, customer_id, review_id, product_id, product_parent, product_title, product_category, star_rating, helpful_votes, total_votes, vine, verified_purchase, review_headline, review_body FROM amazon_review LIMIT 20;
+
+INSERT OVERWRITE TABLE amazon_review_static_partition PARTITION(year='2018' )
+SELECT marketplace, customer_id, review_id, product_id, product_parent, product_title, product_category, star_rating, helpful_votes, total_votes, vine, verified_purchase, review_headline, review_body FROM amazon_review LIMIT 40;
+
+----------------------------------------------------------------
+STATIC PARTITION - ALTER PARTITION:
+----------------------------------------------------------------
+ALTER TABLE amazon_review_static_partition 
+ADD PARTITION (year='2007');
+
+ALTER TABLE amazon_review_static_partition PARTITION (year='2007') RENAME TO PARTITION (year='2008');
+
+ALTER TABLE amazon_review_static_partition 
+DROP IF EXISTS PARTITION (year='2008');
+
+----------------------------------------------------------------
+DYNAMIC PARTITION - CREATE TABLE:
+----------------------------------------------------------------
+CREATE TABLE amazon_review_dynamic_partition(
+marketplace string,
+customer_id int, 
+review_id string, 
+product_id string, 
+product_parent string,
+product_title string, 
+product_category string,
+star_rating int, 
+helpful_votes int,
+total_votes int, 
+vine string, 
+verified_purchase string, 
+review_headline string, 
+review_body string, 
+month string)
+PARTITIONED BY (year string)
+ROW FORMAT DELIMITED 
+FIELDS TERMINATED BY '\t'
+tblproperties('skip.header.line.count'='1' ) ;
+
+----------------------------------------------------------------
+DYNAMIC PARTITION - INSERT DATA:
+----------------------------------------------------------------
+INSERT OVERWRITE TABLE  amazon_review_dynamic_partition partition(year)
+select marketplace, customer_id, review_id, product_id, product_parent, product_title, product_category, star_rating, helpful_votes, total_votes, vine, verified_purchase, review_headline, review_body, month(review_date) as month, year(review_date) as year FROM amazon_review;
+
+----------------------------------------------------------------
+DYNAMIC PARTITION - SET PROPERTY:
+----------------------------------------------------------------
+set hive.exec.dynamic.partition.mode=nonstrict;
+
+----------------------------------------------------------------
+QUERYING PARTITIONED DATA:
+----------------------------------------------------------------
+SELECT * FROM amazon_review_dynamic_partition WHERE year=1999;
+
+----------------------------------------------------------------
+BUCKET - CREATE TABLE:
+----------------------------------------------------------------
+CREATE TABLE amazon_review_bucket(
+marketplace string, customer_id int, review_id string, product_id string, product_parent string, product_title string, product_category string, star_rating int, helpful_votes int, total_votes int, vine string, verified_purchase string, review_headline string, review_body string, month int)
+PARTITIONED BY (year string)
+CLUSTERED BY (month) into 12 buckets
+ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t'
+tblproperties('skip.header.line.count'='1' );
+
+----------------------------------------------------------------
+BUCKET - SET PROPERTY:
+----------------------------------------------------------------
+set hive.enforce.bucketing = true;
+set hive.exec.dynamic.partition.mode=nonstrict;
+
+----------------------------------------------------------------
+BUCKET - INSERT TABLE:
+----------------------------------------------------------------
+INSERT OVERWRITE TABLE  amazon_review_bucket PARTITION(year )
+SELECT marketplace, customer_id, review_id, product_id, product_parent, product_title, product_category, star_rating, helpful_votes, total_votes, vine, verified_purchase, review_headline, review_body, month(review_date) as month, year(review_date) as year FROM amazon_review;
+
+----------------------------------------------------------------
+JOINS IN HIVE:
+----------------------------------------------------------------
+DATASETS:
+
+join1.csv
+
+102,2009-10-08,3,3000
+100,2009-10-08,3,2500
+101,2009-11-20,2,1560
+103,2008-05-20,4,2060
+105,2008-05-20,10,2100
+
+join2.csv
+
+1,Ramesh,32,Ahmedabad,2000.00
+2,Khilan,25,Delhi,1500.00
+3,Kaushik,23,Kota,2000.00
+4,Chaitali,25,Mumbai,6500.00
+5,Hardik,27,Bhopal,8500.00
+6,Komal,22,Kolkata,4500.00
+7,Muffy,24, Indore,10000.00
+
+
+COMMANDS:
+
+ create table orders_join(
+`oid` int,
+`date` string,
+`c_id` int,
+`amount` int)
+row format delimited fields terminated by ', ';
+ 
+load data local inpath 'join1.csv' overwrite into table orders_join;
+ 
+create table customers_join(
+`id` int,
+`name` string,
+`age` int,
+`address` string,
+`salary` double)
+row format delimited fields terminated by ', ';
+
+load data local inpath 'join2.csv' overwrite into table customers_join;
+
+----------------------------------------------------------------
+INNER JOIN:
+----------------------------------------------------------------
+
+SELECT c.id, c.name, c.age, o.amount 
+FROM customers_join c JOIN orders_join o 
+ON (c.id != o.c_id);
+
+----------------------------------------------------------------
+LEFT OUTER JOIN:
+----------------------------------------------------------------
+SELECT c.id, c.name, c.age, o.amount 
+FROM customers_join c LEFT OUTER JOIN orders_join o 
+ON (c.id = o.c_id);
+
+----------------------------------------------------------------
+RIGHT OUTER JOIN:
+----------------------------------------------------------------
+SELECT c.id, c.name, c.age, o.amount 
+FROM customers_join c RIGHT OUTER JOIN orders_join o 
+ON (c.id = o.c_id);
+
+----------------------------------------------------------------
+FULL OUTER JOIN:
+----------------------------------------------------------------
+SELECT c.id, c.name, c.age, o.amount 
+FROM customers_join c FULL OUTER JOIN orders_join o 
+ON (c.id = o.c_id);
+
+
+
+

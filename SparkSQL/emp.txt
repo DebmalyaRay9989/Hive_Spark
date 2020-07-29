@@ -1,0 +1,7 @@
+1,Sheldon,30,5000.0,IT
+2,Leonard,29,3500.0,HR
+3,Penny,29,2300.0,IT
+4,Raj,32,3200.0,HR
+5,Howard,31,4300.0,Finance
+6,Bernadate,29,3500.0,IT
+7,Amy,30,3210.0,Finance
