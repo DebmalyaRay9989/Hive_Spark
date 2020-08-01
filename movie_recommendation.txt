@@ -1,0 +1,191 @@
+
+
+import org.apache.spark.SparkConf
+import org.apache.spark.SparkContext
+import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.SQLContext
+import org.apache.spark.sql._
+import scala.collection.mutable
+import org.apache.spark.SparkContext._
+import org.apache.spark.mllib.recommendation.{ ALS, MatrixFactorizationModel, Rating }
+import org.apache.spark.SparkConf
+import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.SparkSession
+import org.apache.spark.storage.StorageLevel
+import org.apache.spark.streaming.{Seconds, StreamingContext, Time}
+import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.SchemaRDD
+import org.apache.spark.sql.SQLContext
+import org.apache.spark.sql.DataFrameReader
+
+
+
+case class Movie(movieId: Int, title: String)
+
+case class User(userId: Int, gender: String, age: Int, occupation: Int, zip: String)
+
+object Movie {
+  def parseMovie(str: String): Movie = {
+    val fields = str.split("::")
+    assert(fields.size == 3)
+    Movie(fields(0).toInt, fields(1))
+  }
+
+  def parseUser(str: String): User = {
+    val fields = str.split("::")
+    assert(fields.size == 5)
+    User(fields(0).toInt, fields(1).toString, fields(2).toInt, fields(3).toInt, fields(4).toString)
+  }
+
+  // UserID::MovieID::Rating
+  def parseRating(str: String): Rating = {
+    val fields = str.split("::")
+    Rating(fields(0).toInt, fields(1).toInt, fields(2).toDouble)
+  }
+
+
+  def main(args: Array[String]) {
+    
+    /*
+    val conf = new SparkConf().setAppName("Movie Recommendation").setMaster("local")
+    val sc = new SparkContext(conf)
+    val sqlContext = new SQLContext(sc)
+
+     import org.apache.spark.rdd
+
+    import sqlContext.implicits._   */
+    val spark = SparkSession.builder()
+                .master("local")
+                .master("local")
+                .appName("example of SparkSession")
+                .config("spark.some.config.option", "some-value")
+                .enableHiveSupport()
+                .getOrCreate()
+    
+     // import sqlContext._
+                
+                
+val moviesRDD  = spark.read.format("csv")
+  .option("delimiter"," ").option("quote","")
+  .option("header", "true")
+  .option("inferSchema", "true")
+  .load("/user/edureka_918210/Deb_DataSets/Movie/personalitydata.csv")
+  
+  val ratingsRDD  = spark.read.format("csv")
+  .option("delimiter"," ").option("quote"," ")
+  .option("header", "true")
+  .option("inferSchema", "true")
+  .load("/user/edureka_918210/Deb_DataSets/Movie/ratings.csv")
+  
+  
+    // Load into RDD
+ //   val ratingText = sc.textFile("")
+//    val ratingsRDD = ratingText.map(parseRating).cache()
+    println(">>>>> Total number of ratings: " + ratingsRDD.count())
+    println(">>>>> Total number of movies rated: " + ratingsRDD.map(_.product).distinct().count())
+    println(">>>>> Total number of users who rated movies: " + ratingsRDD.map(_.user).distinct().count())
+    
+    
+
+    // load data into DataFrame
+  //  val usersDF1 = sc.textFile("./data/users.dat" ).map(parseUser).DF()
+    moviesRDD.show(10, False)
+    ratingsRDD.show(10, False)
+
+
+    // register DF as a temp table
+    moviesRDD.registerTempTable("ratings")
+    ratingsRDD.registerTempTable("movies")
+  //  usersDF.registerTempTable("users")
+
+    // view
+  //  usersDF.printSchema()
+    moviesRDD.printSchema()
+    ratingsRDD.printSchema()
+
+    // show top 10 most-active users and how many times they rated a movie
+    val mostActiveUsersSchemaRDD = spark.sql(
+      """SELECT ratings.user, count(*) as ct from ratings
+      group by ratings.user order by ct desc limit 10""")
+    println(">>>>> Most 10-active users:\n" + mostActiveUsersSchemaRDD.take(10).foreach(println))
+
+    // Find movies that user 4169 rated higher than 4
+    val results = spark.sql(
+      """SELECT ratings.user,  ratings.product, ratings.rating, movies.title
+      FROM ratings JOIN movies ON movies.movieId=ratings.product
+      where ratings.user=4169 and ratings.rating > 4""")
+    results.show
+
+
+    //// Randomly split ratings into training data RDD (80%) and test data RDD (20%)
+    val splits = ratingsRDD.randomSplit(Array(0.8, 0.2), 0L)
+    val trainingRatingsRDD = splits(0).cache()
+    val testRatingsRDD = splits(1).cache()
+
+    val numTraining = trainingRatingsRDD.count()
+    val numTest = testRatingsRDD.count()
+    println(s">>>>> Training: $numTraining, test: $numTest.")
+
+    // build an ALS user product matrix model with rank=20, iterations=10
+    val model = (new ALS().setRank(20).setIterations(10)
+      .run(trainingRatingsRDD))
+
+    //// Make prediction for user 4169 (most active user)
+    // get top 5 movie predictions for user 4169
+    val topRecsForUser = model.recommendProducts(4169, 10)
+    // get movie titles to show with recommend
+    val movieTitles = moviesRDD.collect()
+    // print out top recommendations for user 4169 with titles
+    topRecsForUser.map(rating => (rating.user, movieTitles(rating.product), rating.rating)).foreach(println)
+
+
+    //// Test model by predicting ratings for test data
+     // ==================================
+    val testUserProductsRDD = testRatingsRDD.map {
+      case Rating(user, product, rating) => (user, product)
+    }
+
+    // get predicted ratings to compare to test ratings
+     // ==================================
+    val predictionsForTestRDD = model.predict(testUserProductsRDD)
+    println(">>>>> Predictions for Test RDD:\n" + predictionsForTestRDD.take(10).mkString("\n"))
+
+    // prepare predictions for comparison
+    val predictionsKeyedByUserProductRDD = predictionsForTestRDD.map {
+      case Rating(user, product, rating) => ((user, product), rating)
+    }
+
+    // preparte test for comparison
+     // ==================================
+    val testKeyedByUserProductRDD = testRatingsRDD.map {
+      case Rating(user, product, rating) => ((user, product), rating)
+    }
+
+    // join the tes with predictions
+   // ==================================
+    val testAndPredictionsJoinedRDD = testKeyedByUserProductRDD.join(predictionsKeyedByUserProductRDD)
+    // print the (user, product), (test rating, predicted rating)
+    println(">>>>> Test join prediction:\n" + testAndPredictionsJoinedRDD.take(10).mkString("\n"))
+
+    val falsePositives = {
+      testAndPredictionsJoinedRDD.filter {
+        case ((user, product), (ratingT, ratingP)) => (ratingT <= 1 && ratingP >= 4)
+      }
+    }
+    println(">>>>> Number of false positives: " + falsePositives.count())
+
+    // Evaluate model using MAE between test and predictions
+     // ==================================
+    
+    val meanAbsoluteError = testAndPredictionsJoinedRDD.map {
+      case ((user, product), (testRating, predRating)) =>
+        val err = (testRating - predRating)
+        Math.abs(err)
+    }.mean()
+    println(s">>>>> MAE: $meanAbsoluteError")
+
+    
+  }
+}
+
+
