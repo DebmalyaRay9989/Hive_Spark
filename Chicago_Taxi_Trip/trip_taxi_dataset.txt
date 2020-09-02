@@ -1,0 +1,1317 @@
+edureka_918210
+
+edureka_918210xyqij
+
+
+create database taxi_trip_database
+use taxi_trip_database
+
+
+http://bdlabs.edureka.co:50003/filebrowser/#/bigdatapgp/common_folder/midproject/taxi_trip_dataset
+
+
+
+/bigdatapgp/common_folder/midproject/taxi_trip_dataset
+
+[edureka_918210@ip-20-0-41-164 ~]$ hadoop fs -ls /bigdatapgp/common_folder/midproject/taxi_trip_dataset
+Found 1 items
+-rw-r--r--   3 evaluationuser01 supergroup 2589084507 2020-05-17 13:54 /bigdatapgp/common_folder/midproject/taxi_trip_dataset/taxi_trip.csv
+[edureka_918210@ip-20-0-41-164 ~]$ 
+
+hadoop fs -ls /user/edureka_918210
+hadoop fs -mkdir /user/edureka_918210/TaxiTrip
+hadoop fs -put taxi_trip.csv /user/edureka_918210/TaxiTrip
+
+
+1. Creating taxi_details_str table & loading the whole row as a string
+
+CREATE TABLE IF NOT EXISTS taxi_trip_database.taxi_details_str (
+taxi_trip_details_str String)
+STORED AS TEXTFILE
+tblproperties("skip.header.line.count"="1");
+
+================================================================================
+
+LOAD DATA INPATH '/user/edureka_918210/TaxiTrip/taxi_trip.csv'
+OVERWRITE INTO TABLE taxi_trip_database.taxi_details_str;
+
+
+
+2. Splitting one column in multiple columns and creating taxi_trip_details table,
+================================================================================
+
+
+CREATE TABLE IF NOT EXISTS taxi_trip_database.taxi_trip_details
+AS
+select split(taxi_trip_details_str, ",")[0] as trip_id,
+split(taxi_trip_details_str, ",")[1] as taxi_id,
+split(taxi_trip_details_str, ",")[2] as trip_start_time,
+split(taxi_trip_details_str, ",")[3] as trip_end_time,
+cast(split(taxi_trip_details_str, ",")[4] as int) as trip_seconds,
+cast(split(taxi_trip_details_str, ",")[5] as float) as trip_miles,
+cast(split(taxi_trip_details_str, ",")[6] as bigint) as pickup_tract,
+cast(split(taxi_trip_details_str, ",")[7] as bigint) as dropoff_tract,
+cast(split(taxi_trip_details_str, ",")[8] as tinyint) as pickup_community,
+cast(split(taxi_trip_details_str, ",")[9] as tinyint) as dropoff_community,
+cast(split(taxi_trip_details_str, ",")[10] as float) as trip_fare,
+cast(split(taxi_trip_details_str, ",")[11] as float) as tip_amt,
+cast(split(taxi_trip_details_str, ",")[12] as float) as toll_amt,
+cast(split(taxi_trip_details_str, ",")[13] as float) as extra_amt,
+cast(split(taxi_trip_details_str, ",")[14] as float) as trip_total_amt,
+split(taxi_trip_details_str, ",")[15] as payment_type,
+split(taxi_trip_details_str, ",")[16] as company,
+cast(split(taxi_trip_details_str, ",")[17] as double) as pickup_latitude,
+cast(split(taxi_trip_details_str, ",")[18] as double) as pickup_longitude,
+split(taxi_trip_details_str, ",")[19] as pickup_location,
+cast(split(taxi_trip_details_str, ",")[20] as double) as dropoff_latitude,
+cast(split(taxi_trip_details_str, ",")[21] as double) as dropoff_longitude,
+split(taxi_trip_details_str, ",")[22] as dropoff_location,
+split(taxi_trip_details_str, ",")[23] as community_areas
+from
+taxi_trip_database.taxi_details_str;
+
+==================================================================================
+
+select split(taxi_trip_details_str, ",")[0] as trip_id,
+split(taxi_trip_details_str, ",")[1] as taxi_id,
+split(taxi_trip_details_str, ",")[2] as trip_start_time,
+split(taxi_trip_details_str, ",")[3] as trip_end_time,
+cast(split(taxi_trip_details_str, ",")[4] as int) as trip_seconds,
+cast(split(taxi_trip_details_str, ",")[12] as float) as toll_amt
+from
+taxi_trip_database.taxi_details_str limit 5;
+
+
+
+
+3. Numerical Mapping of taxi_id & trip_id to reduce the data volume
+=====================================================================
+
+select count(distinct taxi_id) from taxi_trip_database.taxi_trip_details;
+
+RESULT  ::::::::::::::::::::::   5396
+
+
+
+There are only 8287 distinct values. But as we can see the uuid is a really large:
+c1305c4490085b703eed20e95ab0c479c954ae3735a963578627d563fadbf2cc859e12ebcd12c4b8f34b7eb
+2d6c4782b17b56ba8ddfe896fff5763105e81e050
+Keeping this column would result in significant performance implications.
+Hence, we can either
+• Drop this field
+• Or move it to a separate table and create a numerical mapping of the same into the master table.
+This would reduce the data volume significantly as we are going to store only around 8K distinct
+values of taxi ids, which are repeating for over 90M trips.
+Second option makes sense, as it would help us perform per taxi-wise analysis.
+Similarly, we can drop the trip_id, which is a uuid and create a row_number which can be an integer in its
+place.
+
+3.a. Creating a separate table with distinct taxi_id values
+==============================================================
+
+CREATE TABLE IF NOT EXISTS taxi_trip_database.taxi_id_mapping
+AS
+select distinct taxi_id from taxi_trip_database.taxi_trip_details
+
+describe taxi_trip_database.taxi_id_mapping
+
+select * from taxi_trip_database.taxi_id_mapping limit 5;
+
+
+CREATE TABLE IF NOT EXISTS taxi_trip_database.taxi_id_mapping_with_id
+AS
+select row_number() over() as id, taxi_id from taxi_trip_database.taxi_id_mapping
+
+select * from taxi_trip_database.taxi_id_mapping_with_id limit 5;
+
+
+3.b. Joining taxi_id_mapping_with_id table to master table to replace the current taxi_id i.e uuid with a
+numerical id.
+===========================================================================================================
+
+CREATE TABLE IF NOT EXISTS taxi_trip_database.taxi_trip_details_taxi_id_removed
+AS
+SELECT
+trip_id,
+id as taxi_id_int,
+trip_start_time,
+trip_end_time,
+trip_seconds,
+trip_miles,
+pickup_tract,
+dropoff_tract,
+pickup_community,
+dropoff_community,
+trip_fare,
+tip_amt,
+toll_amt,
+extra_amt,
+trip_total_amt,
+payment_type,
+company,
+pickup_latitude,
+pickup_longitude,
+pickup_location,
+dropoff_latitude,
+dropoff_longitude,
+dropoff_location,
+community_areas
+from
+taxi_trip_database.taxi_trip_details as a
+join
+taxi_trip_database.taxi_id_mapping_with_id as b
+on
+a.taxi_id = b.taxi_id
+
+
+
+3.c. Removing trip_id (uuid) and adding an int id instead
+============================================================
+
+CREATE TABLE IF NOT EXISTS taxi_trip_database.taxi_trip_details_taxi_trip_id_removed
+STORED AS ORC
+AS
+SELECT
+row_number() over() as trip_id_int,
+taxi_id_int,
+trip_start_time,
+trip_end_time,
+trip_seconds,
+trip_miles,
+pickup_tract,
+dropoff_tract,
+pickup_community,
+dropoff_community,
+trip_fare,
+tip_amt,
+toll_amt,
+extra_amt,
+trip_total_amt,
+payment_type,
+company,
+pickup_latitude,
+pickup_longitude,
+pickup_location,
+dropoff_latitude,
+dropoff_longitude,
+dropoff_location,
+community_areas
+from
+taxi_trip_database.taxi_trip_details_taxi_id_removed
+
+
+
+4. Cleaning up the temp tables
+drop table chicago_taxis.taxi_details_str
+drop table chicago_taxis.taxi_trip_details
+drop table chicago_taxis.taxi_trip_details_taxi_id_removed
+
+5. Casting date fields
+=========================
+
+CREATE TABLE IF NOT EXISTS taxi_trip_database.taxi_trip_details_taxi_trip_id_removed_ts
+STORED AS ORC
+AS
+SELECT
+taxi_id_int,
+trip_start_time,
+trip_end_time,
+to_date(from_unixtime(unix_timestamp(split(trip_start_time, " ")[0], 'MM/dd/yyyy'), 'yyyy-MM-dd')) as
+trip_start_date,
+to_date(from_unixtime(unix_timestamp(split(trip_end_time, " ")[0], 'MM/dd/yyyy'), 'yyyy-MM-dd')) as
+trip_end_date,
+trip_seconds,
+trip_miles,
+pickup_tract,
+dropoff_tract,
+pickup_community,
+dropoff_community,
+trip_fare,
+tip_amt,
+toll_amt,
+extra_amt,
+trip_total_amt,
+payment_type,
+company,
+pickup_latitude,
+pickup_longitude,
+pickup_location,
+dropoff_latitude,
+dropoff_longitude,
+dropoff_location,
+community_areas
+from 
+taxi_trip_database.taxi_trip_details_taxi_trip_id_removed
+
+
+=========================================================
+
+select * from taxi_trip_database.taxi_trip_details_taxi_trip_id_removed_ts
+
+=========================================================
+
+6. Adding two fields for the trip start & end day of the week
+================================================================
+
+CREATE TABLE IF NOT EXISTS taxi_trip_database.taxi_trip_details_processed_with_dayofweek
+AS
+SELECT
+*,
+from_unixtime(unix_timestamp(split(trip_start_time, " ")[0], 'MM/dd/yyyy'), 'u') as start_dayofweek,
+from_unixtime(unix_timestamp(split(trip_end_time, " ")[0], 'MM/dd/yyyy'), 'u') as end_dayofweek
+from
+taxi_trip_database.taxi_trip_details_taxi_trip_id_removed
+
+==========================================================================
+
+select * from taxi_trip_database.taxi_trip_details_processed_with_dayofweek limit 5
+==========================================================================
+
+7. Adding a weekend field to store whether a day is weekday or weekend
+==========================================================================
+
+CREATE TABLE IF NOT EXISTS taxi_trip_database.taxi_trip_details_weekend_encoded
+STORED AS ORC
+AS
+SELECT
+*,
+CASE
+WHEN start_dayofweek in (6,7) THEN 1
+WHEN start_dayofweek in (1,2,3,4,5) THEN 0
+END AS weekend
+from
+taxi_trip_database.taxi_trip_details_processed_with_dayofweek
+
+==========================================================================
+select * from taxi_trip_database.taxi_trip_details_weekend_encoded limit 5
+==========================================================================
+
+TABLE DESCRIPTION :
+===================
+
+hive> describe taxi_trip_database.taxi_details_str;
+OK
+taxi_trip_details_str   string                                      
+Time taken: 0.493 seconds, Fetched: 1 row(s)
+
+
+
+    > describe taxi_trip_database.taxi_trip_details;
+OK
+trip_id                 string                                      
+taxi_id                 string                                      
+trip_start_time         string                                      
+trip_end_time           string                                      
+trip_seconds            int                                         
+trip_miles              float                                       
+pickup_tract            bigint                                      
+dropoff_tract           bigint                                      
+pickup_community        tinyint                                     
+dropoff_community       tinyint                                     
+trip_fare               float                                       
+tip_amt                 float                                       
+toll_amt                float                                       
+extra_amt               float                                       
+trip_total_amt          float                                       
+payment_type            string                                      
+company                 string                                      
+pickup_latitude         double                                      
+pickup_longitude        double                                      
+pickup_location         string                                      
+dropoff_latitude        double                                      
+dropoff_longitude       double                                      
+dropoff_location        string                                      
+community_areas         string                                      
+Time taken: 0.068 seconds, Fetched: 24 row(s)
+
+
+    > describe taxi_trip_database.taxi_id_mapping
+    > ;
+OK
+taxi_id                 string                
+
+
+    > describe taxi_trip_database.taxi_id_mapping_with_id;
+OK
+id                      int                                         
+taxi_id                 string                                      
+
+
+
+hive> 
+    > describe taxi_trip_database.taxi_trip_details_taxi_id_removed
+    > ;
+OK
+trip_id                 string                                      
+taxi_id_int             int                                         
+trip_start_time         string                                      
+trip_end_time           string                                      
+trip_seconds            int                                         
+trip_miles              float                                       
+pickup_tract            bigint                                      
+dropoff_tract           bigint                                      
+pickup_community        tinyint                                     
+dropoff_community       tinyint                                     
+trip_fare               float                                       
+tip_amt                 float                                       
+toll_amt                float                                       
+extra_amt               float                                       
+trip_total_amt          float                                       
+payment_type            string                                      
+company                 string                                      
+pickup_latitude         double                                      
+pickup_longitude        double                                      
+pickup_location         string                                      
+dropoff_latitude        double                                      
+dropoff_longitude       double                                      
+dropoff_location        string                                      
+community_areas         string                                      
+Time taken: 0.047 seconds, Fetched: 24 row(s)
+hive> 
+
+    > describe taxi_trip_database.taxi_trip_details_taxi_trip_id_removed_ts;
+OK
+taxi_id_int             int                                         
+trip_start_time         string                                      
+trip_end_time           string                                      
+trip_start_date         string                                      
+trip_end_date           string                                      
+trip_seconds            int                                         
+trip_miles              float                                       
+pickup_tract            bigint                                      
+dropoff_tract           bigint                                      
+pickup_community        tinyint                                     
+dropoff_community       tinyint                                     
+trip_fare               float                                       
+tip_amt                 float                                       
+toll_amt                float                                       
+extra_amt               float                                       
+trip_total_amt          float                                       
+payment_type            string                                      
+company                 string                                      
+pickup_latitude         double                                      
+pickup_longitude        double                                      
+pickup_location         string                                      
+dropoff_latitude        double                                      
+dropoff_longitude       double                                      
+dropoff_location        string                                      
+community_areas         string                                      
+Time taken: 0.052 seconds, Fetched: 25 row(s)
+hive> 
+
+
+    > 
+    > describe taxi_trip_database.taxi_trip_details_processed_with_dayofweek;
+OK
+trip_id_int             int                                         
+taxi_id_int             int                                         
+trip_start_time         string                                      
+trip_end_time           string                                      
+trip_seconds            int                                         
+trip_miles              float                                       
+pickup_tract            bigint                                      
+dropoff_tract           bigint                                      
+pickup_community        tinyint                                     
+dropoff_community       tinyint                                     
+trip_fare               float                                       
+tip_amt                 float                                       
+toll_amt                float                                       
+extra_amt               float                                       
+trip_total_amt          float                                       
+payment_type            string                                      
+company                 string                                      
+pickup_latitude         double                                      
+pickup_longitude        double                                      
+pickup_location         string                                      
+dropoff_latitude        double                                      
+dropoff_longitude       double                                      
+dropoff_location        string                                      
+community_areas         string                                      
+start_dayofweek         string                                      
+end_dayofweek           string                                      
+Time taken: 0.045 seconds, Fetched: 26 row(s)
+hive> 
+
+    > describe  taxi_trip_database.taxi_trip_details_weekend_encoded;
+OK
+trip_id_int             int                                         
+taxi_id_int             int                                         
+trip_start_time         string                                      
+trip_end_time           string                                      
+trip_seconds            int                                         
+trip_miles              float                                       
+pickup_tract            bigint                                      
+dropoff_tract           bigint                                      
+pickup_community        tinyint                                     
+dropoff_community       tinyint                                     
+trip_fare               float                                       
+tip_amt                 float                                       
+toll_amt                float                                       
+extra_amt               float                                       
+trip_total_amt          float                                       
+payment_type            string                                      
+company                 string                                      
+pickup_latitude         double                                      
+pickup_longitude        double                                      
+pickup_location         string                                      
+dropoff_latitude        double                                      
+dropoff_longitude       double                                      
+dropoff_location        string                                      
+community_areas         string                                      
+start_dayofweek         string                                      
+end_dayofweek           string                                      
+weekend                 int                                         
+Time taken: 0.046 seconds, Fetched: 27 row(s)
+hive> 
+
+
+3.2.1 Data Summary
+=============================================================================
+=============================================================================
+
+What are the total number of trips per year? Present the findings in the below format.
+
+Create the same summary for number of trips at monthly level. Present the findings in the below format.
+
+Calculate the percentage of records that contains drop-off community value. Excluding all the NULL records, find out the top 10 communities, where people travel to, based on the drop-off
+community field and also find its percentage to the total number of trips. Present the findings in
+the below format.
+
+Create a table which contains the total number of trips for each drop-off community across each year. Using the above table, find the top 10 records based on number of trips with year and
+drop_off community. Remove the null record while creating the table to remove inconsistencies. 
+
+Create a table which contains total number of trips for each drop-off communities across weekdays & weekends to check if there is any sort of pattern visible. After creating the table, find
+the top 10 drop off communities based on number of trips where people travel on weekdays.
+
+Find the same for the weekends. Also find the total number of trips taken on weekdays & weekends and their ratio.
+
+Find the distribution of total number of trips based on trip duration, like <1 hr, 1 to 2 hr, 2 to 3, … 22 to 23 hr. Note that this requires converting trip_seconds into trip_hours as pre-processing.
+Remove the trips that do not contain trip duration. 
+
+Find the top 10 buckets of the number of trips distribution based on the distance covered. Also round off the trip miles to the nearest integer. Remove the trips that do not contain distance. 
+
+Find top 10 buckets of the number of trips distribution based on the trip fare. Also round off the trip fare to the nearest integer. Remove the trips that do not contain trip fare.
+
+Compute the average trip fare per day. Also compute the average trip fare per trip. Compute the same based on weekdays and weekend days. Find out if there is any substantial difference
+observed.
+
+ Create a table to store the taxi wise total fare & total number of trips for each day. Find the
+following insights from the table:
+a. Find the top 10 taxis based on average trips per day.
+b. Find the top 10 taxis based on average fare per day.
+
+
+trip_end_time           string
+
+=============================================================================
+=============================================================================
+
+What are the total number of trips per year? Present the findings in the below format.
+
+
+select count(trip_id_int), cast(substr(trip_end_time, 7, 4) as int)   from  taxi_trip_database.taxi_trip_details_weekend_encoded group by cast(substr(trip_end_time, 7, 4) as int)
+
+=============================================================================
+Create the same summary for number of trips at monthly level. Present the findings in the below format.
+
+
+select count(trip_id_int), cast(substr(trip_end_time, 1, 2) as int)   from  taxi_trip_database.taxi_trip_details_weekend_encoded group by cast(substr(trip_end_time, 1, 2) as int)
+=============================================================================
+
+Calculate the percentage of records that contains drop-off community value. Excluding all the NULL records, find out the top 10 communities, where people travel to, based on the drop-off
+community field and also find its percentage to the total number of trips. Present the findings in
+the below format.
+
+select 
+sum(case when dropoff_community is not null then 1 else 0 end) dropoff_community,
+(sum(case when dropoff_tract is not null then 1 else 0 end)/count(trip_id_int))*100 dropoff_tract,
+(sum(case when dropoff_community is not null then 1 else 0 end)/count(dropoff_community))*100 dropoff_community
+from
+taxi_trip_database.taxi_trip_details_weekend_encoded
+group by dropoff_community
+order by dropoff_community desc 
+limit 10;
+
+=============================================================================
+
+
+ Create a table which contains the total number of trips for each drop-off community across each
+year. Using the above table, find the top 10 records based on number of trips with year and
+drop_off community. Remove the null record while creating the table to remove inconsistencies. 
+=============================================================================
+
+CREATE TABLE IF NOT EXISTS taxi_trip_database.taxi_trip_details_taxi_trip_total_number
+STORED AS ORC
+AS
+SELECT
+dropoff_community,
+cast(substr(trip_end_time, 7, 4) as int) trip_end_time,
+sum(case when pickup_location is not null then 1 else 0 end) pickup_location
+from 
+taxi_trip_database.taxi_trip_details_taxi_trip_id_removed
+group by cast(substr(trip_end_time, 7, 4) as int) ,dropoff_community
+order by cast(substr(trip_end_time, 7, 4) as int) desc
+limit 10;
+
+select * from taxi_trip_database.taxi_trip_details_taxi_trip_total_number
+
+=========================================================================================
+
+5. Create a table which contains total number of trips for each drop-off communities across
+weekdays & weekends to check if there is any sort of pattern visible. After creating the table, find
+the top 10 drop off communities based on number of trips where people travel on weekdays.
+Find the same for the weekends. Also find the total number of trips taken on weekdays &
+weekends and their ratio.
+
+CREATE TABLE IF NOT EXISTS taxi_trip_database.taxi_trip_details_taxi_trip_id_weekend_weekdays
+STORED AS ORC
+AS
+SELECT
+dropoff_community,
+sum(CASE WHEN start_dayofweek in (6,7) then 1 else 0 end) start_dayofweek,
+sum(CASE WHEN start_dayofweek in (1,2,3,4,5) then 1 else 0 end) start_dayofweek,
+(sum(CASE WHEN start_dayofweek in (1,2,3,4,5) then 1 else 0 end) start_dayofweek) / (sum(CASE WHEN start_dayofweek in (6,7) then 1 else 0 end) start_dayofweek)
+from 
+taxi_trip_database.taxi_trip_details_processed_with_dayofweek
+group by dropoff_community
+order by dropoff_community
+limit 10;
+
+
+
+
+=========================================================================================
+
+6. Find the distribution of total number of trips based on trip duration, like <1 hr, 1 to 2 hr, 2 to 3, …
+22 to 23 hr. Note that this requires converting trip_seconds into trip_hours as pre-processing.
+Remove the trips that do not contain trip duration.
+
+
+
+
+select trip_range, count(*) cnt
+from (select
+case when (trip_seconds/3600 >=0 and trip_seconds/3600 <1)   then '(0-1)' 
+     when (trip_seconds/3600 >=1 and trip_seconds/3600 <2)   then '(1-2)'  
+     when (trip_seconds/3600 >=2 and trip_seconds/3600 <3)   then '(2-3)' 
+     when (trip_seconds/3600 >=3 and trip_seconds/3600 <4)   then '(3-4)'
+     when (trip_seconds/3600 >=4 and trip_seconds/3600 <5)   then '(4-5)'
+     when (trip_seconds/3600 >=5 and trip_seconds/3600 <6)   then '(5-6)'
+     when (trip_seconds/3600 >=6 and trip_seconds/3600 <7)   then '(6-7)'
+     when (trip_seconds/3600 >=7 and trip_seconds/3600 <8)   then '(7-8)'
+     when (trip_seconds/3600 >=8 and trip_seconds/3600 <9)   then '(8-9)'
+     when (trip_seconds/3600 >=9 and trip_seconds/3600 <10)   then '(9-10)'
+     when (trip_seconds/3600 >=10 and trip_seconds/3600 <11)   then '(10-11)'
+     when (trip_seconds/3600 >=11 and trip_seconds/3600 <12)   then '(11-12)'
+     when (trip_seconds/3600 >=12 and trip_seconds/3600 <13)   then '(12-13)'
+     when (trip_seconds/3600 >=13 and trip_seconds/3600 <14)   then '(13-14)'
+     when (trip_seconds/3600 >=14 and trip_seconds/3600 <15)   then '(14-15)'
+     when (trip_seconds/3600 >=15 and trip_seconds/3600 <16)   then '(15-16)'
+     when (trip_seconds/3600 >=16 and trip_seconds/3600 <17)   then '(16-17)'
+     when (trip_seconds/3600 >=17 and trip_seconds/3600 <18)   then '(17-18)'
+     when (trip_seconds/3600 >=18 and trip_seconds/3600 <19)   then '(18-19)'
+     when (trip_seconds/3600 >=19 and trip_seconds/3600 <20)   then '(19-20)'
+     when (trip_seconds/3600 >=20 and trip_seconds/3600 <21)   then '(20-21)'
+     when (trip_seconds/3600 >=21 and trip_seconds/3600 <22)   then '(21-22)'
+     when (trip_seconds/3600 >=22 and trip_seconds/3600 <23)   then '(22-23)'  end trip_range
+     from taxi_trip_database.taxi_trip_details_weekend_encoded) T 
+     group by trip_range 
+     order by cnt desc;
+
+=========================================================================================
+     
+7. Find the top 10 buckets of the number of trips distribution based on the distance covered. Also
+round off the trip miles to the nearest integer. Remove the trips that do not contain distance. 
+
+
+trip_id_int             int                                         
+taxi_id_int             int                                         
+trip_start_time         string                                      
+trip_end_time           string                                      
+trip_seconds            int                                         
+trip_miles              float                                       
+pickup_tract            bigint                                      
+dropoff_tract           bigint                                      
+pickup_community        tinyint                                     
+dropoff_community       tinyint                                     
+trip_fare               float                                       
+tip_amt                 float                                       
+toll_amt                float                                       
+extra_amt               float                                       
+trip_total_amt          float                                       
+payment_type            string                                      
+company                 string                                      
+pickup_latitude         double                                      
+pickup_longitude        double                                      
+pickup_location         string                                      
+dropoff_latitude        double                                      
+dropoff_longitude       double                                      
+dropoff_location        string                                      
+community_areas         string                                      
+start_dayofweek         string                                      
+end_dayofweek           string                                      
+weekend                 int 
+===============================================================================================================================================
+https://github.com/maximrohit/Hive-New-York-City-Taxi-Limousine-Commission-TLC-/blob/master/NewYork_Taxi_hive_assignment.txt
+https://github.com/toddwschneider/chicago-taxi-data
+https://github.com/uteegull/chicago-taxi-trip-analysis
+
+Roundoff | Distance Number of Trips
+===============================================================================================================================================
+
+SELECT trip_miles, count(*) AS Total
+FROM taxi_trip_database.taxi_trip_details_weekend_encoded
+WHERE isnotnull(trip_miles) and trip_miles > 0
+GROUP BY trip_miles
+ORDER BY trip_miles desc limit 10;
+
+
+8. Find top 10 buckets of the number of trips distribution based on the trip fare. Also round off the
+trip fare to the nearest integer. Remove the trips that do not contain trip fare.
+Roundoff Fare Number of Trips
+
+SELECT trip_fare, count(*) AS Total
+FROM taxi_trip_database.taxi_trip_details_weekend_encoded
+WHERE isnotnull(trip_fare) and trip_fare > 0
+GROUP BY trip_fare
+ORDER BY trip_fare desc limit 10;
+
+
+9. Compute the average trip fare per day. Also compute the average trip fare per trip. Compute the
+same based on weekdays and weekend days. Find out if there is any substantial difference
+observed.
+
+Normal Days :
+================
+
+SELECT
+cast(substr(trip_end_time, 7, 4) as int) trip_end_time,
+avg(trip_fare)
+from 
+taxi_trip_database.taxi_trip_details_taxi_trip_id_removed
+group by cast(substr(trip_end_time, 7, 4) as int) 
+order by cast(substr(trip_end_time, 7, 4) as int) desc
+limit 10;
+
+SELECT
+dropoff_tract ,
+avg(trip_fare)
+from 
+taxi_trip_database.taxi_trip_details_taxi_trip_id_removed
+group by dropoff_tract 
+order by dropoff_tract desc
+limit 10;
+
+Weekend Days :
+=================
+
+SELECT
+cast(substr(trip_end_time, 7, 4) as int) trip_end_time,
+avg(trip_fare)
+from 
+taxi_trip_database.taxi_trip_details_weekend_encoded
+where weekend > 0 
+group by cast(substr(trip_end_time, 7, 4) as int) 
+order by cast(substr(trip_end_time, 7, 4) as int) desc
+limit 10;
+
+
+SELECT
+dropoff_tract ,
+avg(trip_fare)
+from 
+taxi_trip_database.taxi_trip_details_weekend_encoded
+where weekend > 0 
+group by dropoff_tract 
+order by dropoff_tract desc
+limit 10;
+
+
+=================================================================================================================================================================================================
+
+10. Create a table to store the taxi wise total fare & total number of trips for each day. Find the
+following insights from the table:
+a. Find the top 10 taxis based on average trips per day.
+b. Find the top 10 taxis based on average fare per day.
+
+CREATE TABLE IF NOT EXISTS taxi_trip_database.taxi_trip_details_avg_trip_fare_per_day
+STORED AS ORC
+AS
+SELECT
+cast(substr(trip_end_time, 7, 4) as int) trip_end_time,
+avg(trip_fare)
+from 
+taxi_trip_database.taxi_trip_details_taxi_trip_id_removed
+group by cast(substr(trip_end_time, 7, 4) as int) 
+order by cast(substr(trip_end_time, 7, 4) as int) desc
+limit 10;
+
+
+describe taxi_trip_database.taxi_trip_details_avg_trip_fare_per_day
+
+
+CREATE TABLE IF NOT EXISTS taxi_trip_database.taxi_trip_details_avg_trip_fare_per_trip
+STORED AS ORC
+AS
+SELECT
+dropoff_tract ,
+avg(trip_fare)
+from 
+taxi_trip_database.taxi_trip_details_weekend_encoded
+where weekend > 0 
+group by dropoff_tract 
+order by dropoff_tract desc
+limit 10;
+
+describe taxi_trip_database.taxi_trip_details_avg_trip_fare_per_trip
+
+
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+3.2.2 Data Preparation for Forecasting
+=======================================
+
+
+DAILY SUMMARY TABLE :==============
+===========================================
+
+CREATE TABLE IF NOT EXISTS taxi_trip_database.taxi_trip_details_summary
+STORED AS ORC
+AS
+SELECT
+*,
+day(trip_start_time) AS day,
+month(trip_start_time) AS month,
+year(trip_start_time) AS year,
+CASE
+WHEN start_dayofweek in (6,7) THEN 1
+WHEN start_dayofweek in (1,2,3,4,5) THEN 0
+END AS sat_sun
+from taxi_trip_database.taxi_trip_details_weekend_encoded;
+
+
+
+CREATE TABLE IF NOT EXISTS taxi_trip_database.taxi_trip_daily_details_summary
+STORED AS ORC
+AS
+SELECT
+day
+month,
+year,
+CASE
+WHEN start_dayofweek in (6,7) THEN 1
+WHEN start_dayofweek in (1,2,3,4,5) THEN 0
+END AS satsun,
+sum(case when trip_end_time is not null then 1 else 0 end) trip_end_time,
+trip_total_amt,
+sum(trip_seconds/60),
+avg(trip_fare),
+avg(trip_miles),
+avg(trip_seconds/60)
+from 
+taxi_trip_database.taxi_trip_details_summary
+group by day,month,year,start_dayofweek,trip_total_amt
+order by day ASC,month ASC,year ASC;
+
+=========================================================================================
+WEEKLY SUMMARY TABLE
+==========================================================================================
+
+
+CREATE TABLE IF NOT EXISTS taxi_trip_database.taxi_trip_weekly_details_summary
+STORED AS ORC
+AS
+SELECT
+CASE 
+WHEN start_dayofweek in (1,2,3,4,5,6,7) THEN 1 ELSE 0 END AS Week_No,
+substr(trip_start_time, 1, 11),
+substr(trip_end_time, 1, 11),
+substr(trip_end_time, 4, 2),
+count(trip_id_int),
+sum(trip_fare),
+sum(trip_miles),
+sum(trip_seconds/60),
+avg(trip_fare),
+avg(trip_miles),
+avg(trip_seconds/60)
+from 
+taxi_trip_database.taxi_trip_details_summary
+group by start_dayofweek,substr(trip_start_time, 1, 11),substr(trip_end_time, 1, 11),substr(trip_end_time, 4, 2),trip_fare,trip_miles,trip_seconds;
+
+==========================================================================================
+MONTHLY SUMMARY TABLE
+==========================================================================================
+
+
+CREATE TABLE IF NOT EXISTS taxi_trip_database.taxi_trip_monthly_details_summary
+STORED AS ORC
+AS
+SELECT
+CASE 
+WHEN substr(trip_end_time, 4, 2) IS NULL THEN 0 ELSE 1 END AS Month_No,
+substr(trip_start_time, 1, 11),
+substr(trip_end_time, 1, 11),
+cast(substr(trip_end_time, 7, 4) as int) ,
+count(trip_id_int),
+sum(trip_fare),
+sum(trip_miles),
+sum(trip_seconds/60),
+avg(trip_fare),
+avg(trip_miles),
+avg(trip_seconds/60)
+from 
+taxi_trip_database.taxi_trip_details_summary
+group by substr(trip_end_time, 4, 2),substr(trip_start_time, 1, 11),substr(trip_end_time, 1, 11),cast(substr(trip_end_time, 7, 4) as int),trip_id_int,trip_fare,trip_miles,trip_seconds;
+
+
+==========================================================================================
+3.2.3 Data Preparation for Community Summary 
+==========================================================================================
+
+pickup communities
+===================
+
+PickupCommunityID,
+DailyTripCount,
+DailyTotalFare,
+DailyTotalDistance,
+DailyTotalDuration,
+DailyAverageAmount,
+DailyAverageDistance,
+DailyAverageDuration
+
+
+
+CREATE TABLE IF NOT EXISTS taxi_trip_database.taxi_trip_pickupcommunitydetails
+STORED AS ORC
+AS
+SELECT * FROM
+(select 
+CASE
+WHEN pickup_community IS NULL THEN 0 ELSE pickup_community END AS pickup_community_id,
+CASE 
+WHEN trip_end_time IS NULL THEN 0 ELSE 1 END AS Trip_Count,
+sum(trip_fare),
+sum(trip_miles),
+sum(trip_seconds/60),
+avg(trip_fare),
+avg(trip_miles),
+avg(trip_seconds/60)
+from 
+taxi_trip_database.taxi_trip_details_weekend_encoded
+group by pickup_community,trip_end_time,trip_fare,trip_miles,trip_seconds) b;
+
+
+==========================================================================================
+dropoff communities
+==========================================================================================
+
+DropoffCommunityID,
+DailyTripCount,
+DailyTotalFare,
+DailyTotalDistance,
+DailyTotalDuration,
+DailyAverageAmount,
+DailyAverageDistance,
+DailyAverageDuration
+
+
+CREATE TABLE IF NOT EXISTS taxi_trip_database.taxi_trip_dropoffcommunitydetails
+STORED AS ORC
+AS
+SELECT * FROM
+(select dropoff_community,
+CASE 
+WHEN trip_end_time IS NULL THEN 0 ELSE 1 END AS Trip_Count,
+sum(trip_fare),
+sum(trip_miles),
+sum(trip_seconds/60),
+avg(trip_fare),
+avg(trip_miles),
+avg(trip_seconds/60)
+from 
+taxi_trip_database.taxi_trip_details_weekend_encoded
+group by dropoff_community,trip_end_time,trip_fare,trip_miles,trip_seconds) b;
+
+==========================================================================================
+3.2.4 Data Preparation for Origin to Destination Pair Summary
+===========================================================================================
+
+IN SPARK
+=========
+
+1) Mapping the Raw Data with RDD(Resilent Distributed Data) and converstion of DF -  Single Code
+
+var myDF_Trip1=spark.read.format("csv").option("delimiter",",").option("header","false").option("inferSchema","true").load("/user/edureka_918210/TaxiTrip/taxi_trip.csv").toDF("Trip_ID","Taxi_ID","Trip_Start_Timestamp","Trip_End_Timestamp","Trip_Seconds","Trip_Miles","Pickup_Census_Tract","Dropoff_Census_Tract","Pickup_Community_Area","Dropoff_Community_Area","Fare","Tips","Tolls","Extras","Trip_Total","Payment_Type","Company","Pickup_Centroid_Latitude","Pickup_Centroid_Longitude","Pickup_Centroid_Location","Dropoff_Centroid_Latitude","Dropoff_Centroid_Longitude","Dropoff_Centroid_Location","Community_Areas")
+
+
+2) DF definition . Please Note, we used InferSchema Option for automatic conversion in data definition in above command
+
+ myDF_Trip1.show(false)
+
+3) DF data definition
+
+myDF_Trip1.printSchema
+
+root
+ |-- Trip_ID: string (nullable = true)
+ |-- Taxi_ID: string (nullable = true)
+ |-- Trip_Start_Timestamp: string (nullable = true)
+ |-- Trip_End_Timestamp: string (nullable = true)
+ |-- Trip_Seconds: string (nullable = true)
+ |-- Trip_Miles: string (nullable = true)
+ |-- Pickup_Census_Tract: string (nullable = true)
+ |-- Dropoff_Census_Tract: string (nullable = true)
+ |-- Pickup_Community_Area: string (nullable = true)
+ |-- Dropoff_Community_Area: string (nullable = true)
+ |-- Fare: string (nullable = true)
+ |-- Tips: string (nullable = true)
+ |-- Tolls: string (nullable = true)
+ |-- Extras: string (nullable = true)
+ |-- Trip_Total: string (nullable = true)
+ |-- Payment_Type: string (nullable = true)
+ |-- Company: string (nullable = true)
+ |-- Pickup_Centroid_Latitude: string (nullable = true)
+ |-- Pickup_Centroid_Longitude: string (nullable = true)
+ |-- Pickup_Centroid_Location: string (nullable = true)
+ |-- Dropoff_Centroid_Latitude: string (nullable = true)
+ |-- Dropoff_Centroid_Longitude: string (nullable = true)
+ |-- Dropoff_Centroid_Location: string (nullable = true)
+ |-- Community_Areas: string (nullable = true)
+
+4) Registering orCreation of Temp View for using Spark SQL
+
+myDF_Trip1.createOrReplaceTempView("Trip_Details")
+
+5) Using Spark SQL
+
+
+spark.sql("select Pickup_Community_Area,Dropoff_Community_Area,CASE WHEN Trip_ID IS NULL THEN 0 ELSE 1 END AS Trip_Count,sum(Fare),sum(Trip_Miles),sum(Trip_Seconds/60),avg(Fare),avg(Trip_Miles),avg(Trip_Seconds/60) from Trip_Details group by Pickup_Community_Area,Dropoff_Community_Area,Trip_ID,Fare,Trip_Miles,Trip_Seconds").show
+
+===========================================
+3.2.5 Data Preparation for Company Summary
+===========================================
+
+
+spark.sql("select Company,CASE WHEN Trip_ID IS NULL THEN 0 ELSE 1 END AS Trip_Count,sum(Fare),sum(Trip_Miles),sum(Trip_Seconds/60),avg(Fare),avg(Trip_Miles),avg(Trip_Seconds/60) from Trip_Details group by Company,Dropoff_Community_Area,Trip_ID,Fare,Trip_Miles,Trip_Seconds").show
+
+============================================
+3.2.6 Data Summary in RDBMS
+=============================================
+
+CREATE TABLE IF NOT EXISTS taxi_trip_database.taxi_trip_pickupcommunitydetails (
+    Pickup_community_id TINYINT NOT NULL,
+    daily_trip_count TINYINT NOT NULL,
+    total_trip_fare INT AUTO_INCREMENT PRIMARY KEY,
+    total_trip_miles TINYINT NOT NULL,
+    total_trip_mins TINYINT NOT NULL,
+    avg_trip_fare TINYINT NOT NULL,
+    avg_trip_miles TINYINT NOT NULL,
+    avg_trip_mins TINYINT NOT NULL
+)  ENGINE=INNODB;
+
+
+CREATE TABLE IF NOT EXISTS taxi_trip_database.taxi_trip_dropoffcommunitydetails (
+    dropoff_community_id TINYINT NOT NULL,
+    daily_trip_count TINYINT NOT NULL,
+    total_trip_fare INT AUTO_INCREMENT PRIMARY KEY,
+    total_trip_miles TINYINT NOT NULL,
+    total_trip_mins TINYINT NOT NULL,
+    avg_trip_fare TINYINT NOT NULL,
+    avg_trip_miles TINYINT NOT NULL,
+    avg_trip_mins TINYINT NOT NULL
+)  ENGINE=INNODB;
+
+CREATE TABLE IF NOT EXISTS taxi_trip_database.taxi_trip_companydetails (
+    company TINYINT NOT NULL,
+    daily_trip_count TINYINT NOT NULL,
+    total_trip_fare INT AUTO_INCREMENT PRIMARY KEY,
+    total_trip_miles TINYINT NOT NULL,
+    total_trip_mins TINYINT NOT NULL,
+    avg_trip_fare TINYINT NOT NULL,
+    avg_trip_miles TINYINT NOT NULL,
+    avg_trip_mins TINYINT NOT NULL
+)  ENGINE=INNODB;
+
+==================================================================================
+LOADING THE DATA
+==================================================================================
+
+LOAD DATA INFILE '/mnt/home/edureka_918210/Taxi_Trip_ResultSet/taxi_trip_pickupcommunitydetails.csv'
+INTO TABLE taxi_trip_database.taxi_trip_pickupcommunitydetails
+FIELDS TERMINATED BY ','
+LINES TERMINATED BY '/n'
+IGNORE 1 ROWS;
+
+LOAD DATA INFILE '/mnt/home/edureka_918210/Taxi_Trip_ResultSet/percentageofrecordsthat contains drop-off community.csv'
+INTO TABLE taxi_trip_database.taxi_trip_dropoffcommunitydetails
+FIELDS TERMINATED BY ','
+LINES TERMINATED BY '/n'
+IGNORE 1 ROWS;
+
+LOAD DATA INFILE '/mnt/home/edureka_918210/Taxi_Trip_ResultSet/taxi_trip_pickupcommunitydetails.csv'
+INTO TABLE taxi_trip_database.taxi_trip_companydetails
+FIELDS TERMINATED BY ','
+LINES TERMINATED BY '/n'
+IGNORE 1 ROWS;
+
+
+
+=======================
+3.2.7 Summary Data Mart
+========================
+
+
+CREATING TABLES FROM HIVE TO HBASE :
+======================================
+PICKUP COMMUNITY Details :
+============================
+
+import java.io.IOException;
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hbase.HBaseConfiguration;
+import org.apache.hadoop.hbase.HColumnDescriptor;
+import org.apache.hadoop.hbase.HTableDescriptor;
+import org.apache.hadoop.hbase.client.HBaseAdmin;
+ 
+public class CreateHBaseTable
+{
+  public static void main(String[] args) throws IOException
+  {
+    HBaseConfiguration hconfig = new HBaseConfiguration(new Configuration());
+    HTableDescriptor htable = new HTableDescriptor("taxi_trip_pickupcommunitydetails"); 
+    htable.addFamily( new HColumnDescriptor("pickup_community_id"));
+    htable.addFamily( new HColumnDescriptor("Trip_Count"));
+    htable.addFamily( new HColumnDescriptor("Total_trip_fare"));
+    htable.addFamily( new HColumnDescriptor("Total_trip_miles"));
+    htable.addFamily( new HColumnDescriptor("Total_trip_duration_mins"));
+    htable.addFamily( new HColumnDescriptor("Average_trip_fare"));
+    htable.addFamily( new HColumnDescriptor("Average_trip_miles"));
+    htable.addFamily( new HColumnDescriptor("Average_trip_duration_mins"));
+    System.out.println( "Connecting..." );
+    HBaseAdmin hbase_admin = new HBaseAdmin( hconfig );
+    System.out.println( "Creating Table..." );
+    hbase_admin.createTable( htable );
+    System.out.println("Done!");
+  }
+}
+
+============================
+DROPOFF COMMUNITY Details :
+============================
+
+import java.io.IOException;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hbase.HBaseConfiguration;
+import org.apache.hadoop.hbase.HColumnDescriptor;
+import org.apache.hadoop.hbase.HTableDescriptor;
+import org.apache.hadoop.hbase.client.HBaseAdmin;
+ 
+public class CreateHBaseTable
+{
+  public static void main(String[] args) throws IOException
+  {
+    HBaseConfiguration hconfig = new HBaseConfiguration(new Configuration());
+    HTableDescriptor htable = new HTableDescriptor("taxi_trip_dropoffcommunitydetails"); 
+    htable.addFamily( new HColumnDescriptor("dropoff_community_id"));
+    htable.addFamily( new HColumnDescriptor("Trip_Count"));
+    htable.addFamily( new HColumnDescriptor("Total_trip_fare"));
+    htable.addFamily( new HColumnDescriptor("Total_trip_miles"));
+    htable.addFamily( new HColumnDescriptor("Total_trip_duration_mins"));
+    htable.addFamily( new HColumnDescriptor("Average_trip_fare"));
+    htable.addFamily( new HColumnDescriptor("Average_trip_miles"));
+    htable.addFamily( new HColumnDescriptor("Average_trip_duration_mins"));
+    System.out.println( "Connecting..." );
+    HBaseAdmin hbase_admin = new HBaseAdmin( hconfig );
+    System.out.println( "Creating Table..." );
+    hbase_admin.createTable( htable );
+    System.out.println("Done!");
+  }
+}
+=========================================
+COMPANY  SUMMARY   TABLE
+=========================================
+
+import java.io.IOException;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hbase.HBaseConfiguration;
+import org.apache.hadoop.hbase.HColumnDescriptor;
+import org.apache.hadoop.hbase.HTableDescriptor;
+import org.apache.hadoop.hbase.client.HBaseAdmin;
+ 
+public class CreateHBaseTable
+{
+  public static void main(String[] args) throws IOException
+  {
+    HBaseConfiguration hconfig = new HBaseConfiguration(new Configuration());
+    HTableDescriptor htable = new HTableDescriptor("taxi_trip_dropoffcommunitydetails"); 
+    htable.addFamily( new HColumnDescriptor("Company"));
+    htable.addFamily( new HColumnDescriptor("Trip_Count"));
+    htable.addFamily( new HColumnDescriptor("Total_trip_fare"));
+    htable.addFamily( new HColumnDescriptor("Total_trip_miles"));
+    htable.addFamily( new HColumnDescriptor("Total_trip_duration_mins"));
+    htable.addFamily( new HColumnDescriptor("Average_trip_fare"));
+    htable.addFamily( new HColumnDescriptor("Average_trip_miles"));
+    htable.addFamily( new HColumnDescriptor("Average_trip_duration_mins"));
+    System.out.println( "Connecting..." );
+    HBaseAdmin hbase_admin = new HBaseAdmin( hconfig );
+    System.out.println( "Creating Table..." );
+    hbase_admin.createTable( htable );
+    System.out.println("Done!");
+  }
+}
+
+
+===========================================================================================================================================================================
+3.2.7 Summary Data Mart
+============================================================================================================================================================================
+
+package HBASECRUD.HBASE;
+
+import java.io.IOException;
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hbase.Cell;
+import org.apache.hadoop.hbase.CellUtil;
+import org.apache.hadoop.hbase.HColumnDescriptor;
+import org.apache.hadoop.hbase.HTableDescriptor;
+import org.apache.hadoop.hbase.TableName;
+import org.apache.hadoop.hbase.client.Connection;
+import org.apache.hadoop.hbase.client.ConnectionFactory;
+import org.apache.hadoop.hbase.client.Delete;
+import org.apache.hadoop.hbase.client.HBaseAdmin;
+import org.apache.hadoop.hbase.client.Put;
+import org.apache.hadoop.hbase.client.Result;
+import org.apache.hadoop.hbase.client.ResultScanner;
+import org.apache.hadoop.hbase.client.Scan;
+import org.apache.hadoop.hbase.client.Table;
+import org.apache.hadoop.hbase.util.Bytes;
+
+
+public class HBaseCustomClient {
+
+	private HBaseAdmin admin;
+	private Connection connection = null;
+
+	public HBaseCustomClient(Configuration conf) throws IOException {
+
+		connection = ConnectionFactory.createConnection(conf);
+		admin = (HBaseAdmin) connection.getAdmin();
+	}
+
+	public void createTable(String tableName, String[] CFs) {
+
+		try {
+			if (admin.tableExists(tableName)) {
+
+				System.out.println(tableName + "Already Exists");
+
+			} else {
+
+				HTableDescriptor tableDescriptor = new HTableDescriptor(TableName.valueOf(tableName));
+
+				for (String CFName : CFs) {
+					tableDescriptor.addFamily(new HColumnDescriptor(CFName));
+				}
+
+				admin.createTable(tableDescriptor);
+
+			}
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+	}
+
+	public void deleteTable(String tableName) {
+
+		try {
+			if (admin.tableExists(tableName)) {
+
+				admin.disableTable(tableName);
+				admin.deleteTable(tableName);
+			} else {
+				System.out.println(tableName + " Doesn't exist");
+			}
+
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+	}
+
+	public void insertRecord(String tableName, String rowKey, String family, String qualifier, String value) {
+
+		try {
+			Table table = connection.getTable(TableName.valueOf(tableName));
+
+			Put p = new Put(Bytes.toBytes(rowKey));
+
+			p.addColumn(Bytes.toBytes(family), Bytes.toBytes(qualifier), Bytes.toBytes(value));
+
+			table.put(p);
+
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+
+	public void deleteRecord(String tableName, String rowKey) {
+
+		try {
+			Table table = connection.getTable(TableName.valueOf(tableName));
+			Delete d = new Delete(Bytes.toBytes(rowKey));
+			table.delete(d);
+
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+	}
+
+	public void printTable(String tablename) {
+
+		ResultScanner rsObj = null;
+
+		try {
+			Table table = connection.getTable(TableName.valueOf(tablename));
+
+			Scan s = new Scan();
+			rsObj = table.getScanner(s);
+
+			for (Result result : rsObj) {
+
+				System.out.println(Bytes.toString(result.getRow()));
+				for (Cell c : result.rawCells()) {
+					System.out.println("Family: " + Bytes.toString(CellUtil.cloneFamily(c)));
+					System.out.println("Qualifiers: " + Bytes.toString(CellUtil.cloneQualifier(c)));
+					System.out.println("Values: " + Bytes.toString(CellUtil.cloneValue(c)));
+
+				}
+
+			}
+			rsObj.close();
+
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			rsObj.close();
+
+			e.printStackTrace();
+		}
+
+	}
+}
+
+==========================================================================================================================================================================
+
+
+
+
+
+
